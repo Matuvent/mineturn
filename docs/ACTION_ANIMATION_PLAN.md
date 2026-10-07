@@ -340,8 +340,24 @@ if (pose != null) { setPosition(pose.position()); setRotation(pose.yaw(), pose.p
 
 若机位落到方块中，最后再沿视线夹取到遮挡前。文件损坏时记录错误并回落到内置默认，不会崩客户端。
 
-**尚未实现（P1+）**：行动者姿态/粒子、数据包 JSON 引用、Java API、优先级抢占、震屏慢动作。
+**尚未实现（P1+）**：行动者姿态/粒子、数据包 JSON 引用、Java API、震屏慢动作。
 "每个动作都有动画"当前 = 每个动作都有一段**固定机位技能镜头**（`generic` 兜底），暂无姿态动画。
+
+### 14.1 A12：生命周期与抢占（2026-10-08）
+
+- `network/ActionAnimationOrder.java`（新）：纯逻辑的序号去重 + 优先级仲裁，可在服务端 GameTest 中验证
+  - 更高优先级**立即打断**；同优先级**替换**（最新动作更值得展示）；更低优先级进**单个待播槽**
+  - 待播槽保留**最强**候选而非最新者；播完后自动提升
+  - 序号去重保证重放/乱序包不会重启动画
+- `network/BattleNetwork.java`：`ActionAnimation` 增加 `priority` 字段；`priorityFor(animationId)`：
+  近战/远程 = 200（打断），`generic` = 100，进食 = 50（排队）；**协议 21 → 22**
+- `client/ActionAnimations.java`：接入优先级与待播槽；释放动画结束后若存在待播演出则**无缝接上**，
+  不再先弹回自由镜头再切回去；`BattleClient.active()` 为假时**不再输出镜头覆盖**，避免战斗结束后残留机位
+- 测试：`test/ActionAnimationOrderGameTests.java`（新）覆盖序号单调/去重、打断、排队、最强候选保留、
+  提升、清空、以及服务端优先级映射与已映射 effect 的一致性
+
+**激流纯表现旋转：维持暂缓。** 原版激流旋转会追加实时伤害，直接启用等于绕过战斗结算；
+若要做，必须在纯表现路径下屏蔽其伤害与碰撞，属于独立议题，不在 A12 范围内。
 
 
 ---

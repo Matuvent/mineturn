@@ -2478,7 +2478,8 @@ public final class BattleExtensionGameTests {
             var motion=new com.matuvent.mineturn.network.BattleNetwork.Motion(packet.battle(),27,new Vec3(3.5,7,8.5),true);
             com.matuvent.mineturn.network.BattleNetwork.Motion.CODEC.encode(buffer,motion);
             h.assertTrue(motion.equals(com.matuvent.mineturn.network.BattleNetwork.Motion.CODEC.decode(buffer)),"Motion codec lost position or activity");
-            var anim=new com.matuvent.mineturn.network.BattleNetwork.ActionAnimation(packet.battle(),41,ResourceLocation.parse("mineturn:melee"),7,9,new Vec3(1,2,3),true);
+            var anim=new com.matuvent.mineturn.network.BattleNetwork.ActionAnimation(packet.battle(),41,ResourceLocation.parse("mineturn:melee"),
+                    com.matuvent.mineturn.network.ActionAnimationOrder.PRIORITY_ATTACK,7,9,new Vec3(1,2,3),true);
             com.matuvent.mineturn.network.BattleNetwork.ActionAnimation.CODEC.encode(buffer,anim);
             h.assertTrue(anim.equals(com.matuvent.mineturn.network.BattleNetwork.ActionAnimation.CODEC.decode(buffer)),"Action animation codec roundtrip failed");
             h.assertTrue(com.matuvent.mineturn.network.BattleNetwork.ActionAnimation.idFor("mineturn:food").toString().equals("mineturn:eat")

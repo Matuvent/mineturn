@@ -1263,8 +1263,9 @@ final class BattleSession {
         var players = players();
         if (players.isEmpty()) return;
         Vec3 point = impact != null ? impact : (target != null && target.isAlive() ? target.getBoundingBox().getCenter() : source.getBoundingBox().getCenter());
-        var packet = new BattleNetwork.ActionAnimation(id, ++actionSequence,
-                BattleNetwork.ActionAnimation.idFor(action.effect()), source.getId(),
+        var animationId = BattleNetwork.ActionAnimation.idFor(action.effect());
+        var packet = new BattleNetwork.ActionAnimation(id, ++actionSequence, animationId,
+                BattleNetwork.ActionAnimation.priorityFor(animationId), source.getId(),
                 target == null ? source.getId() : target.getId(), point, impact != null);
         for (var player : players()) BattleNetwork.send(player, packet);
     }

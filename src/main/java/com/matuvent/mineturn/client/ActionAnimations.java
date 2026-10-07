@@ -1,5 +1,6 @@
 package com.matuvent.mineturn.client;
 
+import com.matuvent.mineturn.network.ActionAnimationOrder;
 import com.matuvent.mineturn.network.BattleNetwork;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
@@ -7,10 +8,12 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Client-side action performance player. It owns a single active performance and exposes a fixed
- * camera pose for {@link com.matuvent.mineturn.mixin.BattleCameraMixin}: the camera is placed at a
- * world-space offset relative to the actor (mirroring a Star Rail style skill cut), aimed at the
- * target, pushed in and released with a short blend.
+ * Client-side action performance player. It owns one running performance plus a single pending slot and
+ * exposes a fixed camera pose for {@link com.matuvent.mineturn.mixin.BattleCameraMixin}: the camera is
+ * placed at a world-space offset relative to the actor (mirroring a Star Rail style skill cut), aimed at
+ * the target, pushed in and released with a short blend.
+ *
+ * <p>Preemption is delegated to {@link ActionAnimationOrder}: attacks interrupt, minor actions wait.
  */
 public final class ActionAnimations {
     /** Fully resolved camera state: world position plus the look direction toward the aim point. */
@@ -18,13 +21,14 @@ public final class ActionAnimations {
     private static final double BLEND_IN_MS=250;
     private static final double BLEND_OUT_MS=180;
 
+    private static final ActionAnimationOrder order=new ActionAnimationOrder();
     private static Playback playback;
+    private static Queued pending;
     private static CameraPose blendOutFrom;
     private static CameraPose blendOutTo;
     private static long blendOutStart;
     private static CameraPose liveCamera;
     private static java.util.UUID lastBattle;
-    private static long lastSequence=-1;
     private static net.minecraft.client.multiplayer.ClientLevel world;
 
     private static void checkWorld(){
@@ -35,6 +39,7 @@ public final class ActionAnimations {
     private ActionAnimations(){}
 
     private record Playback(ResourceLocation id, long started, long durationMs, CameraPose from, CameraPose hold) {}
+    private record Queued(BattleNetwork.ActionAnimation packet, CameraPose hold) {}
 
     /** Recorded every frame by the camera mixin so a cut can push in from wherever the player was. */
     public static void noteFreeCamera(CameraPose pose){liveCamera=pose;}
@@ -44,12 +49,20 @@ public final class ActionAnimations {
         if(level==null || player==null)return;
         checkWorld();
         if(packet.battle()==null || packet.animationId()==null)return;
-        if(!packet.battle().equals(lastBattle)){lastBattle=packet.battle();lastSequence=-1;}
-        if(packet.sequence()<=lastSequence)return;
-        lastSequence=packet.sequence();
+        if(!packet.battle().equals(lastBattle)){clear();lastBattle=packet.battle();}
+        switch(order.arrive(packet.sequence(),packet.priority())){
+            case DROP -> { }
+            case QUEUE -> pending=new Queued(packet,null);   // Hold pose is resolved when it is promoted.
+            case PLAY -> play(packet);
+        }
+    }
+
+    /** Starts a performance immediately, pushing in from the live camera. */
+    private static void play(BattleNetwork.ActionAnimation packet){
+        var level=Minecraft.getInstance().level;
+        if(level==null)return;
         if(!(level.getEntity(packet.actorId()) instanceof LivingEntity actor))return;
-        LivingEntity aim=pickAim(level,packet,actor);
-        var hold=computeHold(level,packet.animationId(),actor,aim);
+        var hold=computeHold(level,packet.animationId(),actor,pickAim(level,packet,actor));
         blendOutFrom=null;blendOutTo=null;
         playback=new Playback(packet.animationId(),System.nanoTime(),durationFor(packet.animationId()),
                 liveCamera!=null?liveCamera:hold,hold);
@@ -123,12 +136,19 @@ public final class ActionAnimations {
     public static CameraPose cameraPose(){
         var mc=Minecraft.getInstance();if(mc.level==null)return null;
         checkWorld();
+        if(!BattleClient.active())return null;      // Never hold a stale cut after the battle ends.
         long now=System.nanoTime();
         if(playback==null){
             if(blendOutTo==null)return null;
             double b=Math.clamp((now-blendOutStart)/1_000_000.0/BLEND_OUT_MS,0,1);
-            if(b>=1){blendOutFrom=null;blendOutTo=null;return null;}
-            return blend(blendOutFrom,blendOutTo,b);
+            if(b<1)return blend(blendOutFrom,blendOutTo,b);
+            blendOutFrom=null;blendOutTo=null;
+            // A queued performance takes over once the release finished, so the camera never snaps free
+            // and back again between two adjacent performances. Ordering is always advanced, and the
+            // pending slot is only claimed when the order actually promotes it.
+            boolean promote=order.finishRunning();
+            if(promote && pending!=null){play(pending.packet());pending=null;}
+            return playback!=null?playback.hold():null;
         }
         long elapsedMs=(now-playback.started())/1_000_000L;
         if(elapsedMs>=playback.durationMs()){
@@ -166,5 +186,8 @@ public final class ActionAnimations {
         return new CameraPose(from.position().lerp(to.position(),ease),yaw,pitch);
     }
 
-    public static void clear(){playback=null;blendOutFrom=null;blendOutTo=null;lastBattle=null;lastSequence=-1;}
+    public static void clear(){
+        playback=null;pending=null;blendOutFrom=null;blendOutTo=null;
+        lastBattle=null;order.clear();
+    }
 }
