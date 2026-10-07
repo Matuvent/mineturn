@@ -251,19 +251,26 @@ record ActionAnimation(
 
 ### 12.3 客户端 `ActionAnimations`（对标 `ProjectileAnimations`）
 
-- `receive(packet)`：校验 + 按 `battleId + sequence` 去重 + 上限 8 入队
-- `tick()`：按 `System.nanoTime()` 推进当前演出
-- `cameraOverride(now)`：返回 `null` 表示无演出，否则返回当前关键帧插值后的镜头姿态
-  （覆盖 `BattleClient.yaw/pitch/distance/focus`）
-- 演出结束平滑回到自由镜头；世界切换/战斗关闭清空
+- `receive(packet)`：校验 + 按 `battleId + sequence` 去重
+- `noteFreeCamera(pose)`：由混入层每帧回填当前真实机位，供推入起点与回落目标使用
+- `cameraPose()`：返回 `null` 表示无演出，否则返回**绝对世界坐标 + 锁定朝向**的固定机位
+  - 推入 250ms（从当前自由机位缓动到固定机位）→ 保持 → 释放 180ms 回到自由机位
+- 换世界 / 战斗关闭 / 退出战斗清空
 
 ### 12.4 `BattleCameraMixin` 改造
 
+混入层每帧把**当前真实机位**交给演出系统，并优先采用演出给出的绝对坐标：
+
 ```java
-var override = ActionAnimations.cameraOverride(now);
-if (override != null) { 用 override 的 yaw/pitch/distance/focus }
-else { 现有 BattleClient.yaw/pitch/distance/focus }
+ActionAnimations.noteFreeCamera(new CameraPose(getPosition(), getYRot(), getXRot()));
+var pose = ActionAnimations.cameraPose();
+if (pose != null) { setPosition(pose.position()); setRotation(pose.yaw(), pose.pitch(), 0); return; }
+// 无演出：现有自由轨道镜头
 ```
+
+**关键**：固定机位是**绝对世界坐标 + 锁定朝向**，不是"只改聚焦点和距离"。
+镜头按行动者自身朝向计算偏移（正前方 + 右方各约 1 格），并锁定看向目标，
+等价于崩铁放技能时的技能机位；若机位落入方块，会沿视线夹取到遮挡前。
 
 ### 12.5 行动者近似（P1，非 P0）
 
@@ -289,13 +296,21 @@ else { 现有 BattleClient.yaw/pitch/distance/focus }
 
 - `network/BattleNetwork.java`：新增 `ActionAnimation` payload（battle/sequence/animationId/actorId/targetId/impact/hasImpact）+ `idFor(effect)` 映射；协议 **20 → 21**
 - `battle/BattleSession.java`：新增 `actionSequence` 与 `broadcastActionAnimation`，在 `runEffect` 结算后向本场所有玩家广播
-- `client/ActionAnimations.java`：单演出播放器，`cameraPose()` 返回镜头覆盖；按 battleId 去重、换世界清理、结束 150ms 平滑回落
-- `mixin/BattleCameraMixin.java`：优先用 `ActionAnimations.cameraPose()`，否则回落自由镜头
+- `client/ActionAnimations.java`：单演出播放器。按行动者自身朝向算出**固定机位**（正前方 + 右方偏移），锁定看向目标；推入 250ms → 保持 → 释放 180ms；机位落入方块时沿视线夹取；按 battleId 去重、换世界清理
+- `mixin/BattleCameraMixin.java`：回填当前真实机位 + 优先采用演出的绝对坐标与朝向
 - `client/BattleClient.java`：接线 `receiveActionAnimation` + 战斗退出时 `clear()`
 - 测试：`ActionAnimation` 编解码往返 + `idFor` 映射断言；全量 **297/297 通过**
 
+**机位定义**（按用户要求，参照崩铁技能机位）：
+
+| 动作 | 机位 | 看向 |
+| --- | --- | --- |
+| `eat` | 行动者正前方 0.6 格、右方 1 格 | 行动者自身面部 |
+| `melee`（含 `generic` 兜底） | 行动者正前方 1 格、右方 1 格 | 被攻击者 |
+| `ranged` | 行动者正前方 1 格、右方 0.9 格 | 被攻击者 |
+
 **尚未实现（P1+）**：行动者姿态/粒子、数据包 JSON 引用、Java API、优先级抢占、震屏慢动作。
-"每个动作都有动画"当前 = 每个动作都有一段镜头演出（`generic` 兜底），暂无姿态动画。
+"每个动作都有动画"当前 = 每个动作都有一段**固定机位技能镜头**（`generic` 兜底），暂无姿态动画。
 
 
 ---

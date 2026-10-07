@@ -1,5 +1,6 @@
 package com.matuvent.mineturn.mixin;
 
+import com.matuvent.mineturn.client.ActionAnimations;
 import com.matuvent.mineturn.client.BattleClient;
 import net.minecraft.client.Camera;
 import net.minecraft.world.phys.Vec3;
@@ -16,17 +17,25 @@ public abstract class BattleCameraMixin {
     @Shadow protected abstract void setRotation(float yaw, float pitch, float roll);
     @Shadow protected abstract void move(float zoom, float dy, float dx);
     @Shadow private float getMaxZoom(float distance) { throw new AssertionError(); }
+    @Shadow public abstract Vec3 getPosition();
+    @Shadow public abstract float getYRot();
+    @Shadow public abstract float getXRot();
+
     @Inject(method = "setup", at = @At("RETURN"))
     private void mineturn$orbit(CallbackInfo ci) {
         if (!BattleClient.active()) return;
         detached = true;
-        var override = com.matuvent.mineturn.client.ActionAnimations.cameraPose();
-        float yaw = override != null ? override.yaw() : BattleClient.yaw;
-        float pitch = override != null ? override.pitch() : BattleClient.pitch;
-        double distance = override != null ? override.distance() : BattleClient.distance;
-        Vec3 focus = override != null ? override.focus() : BattleClient.focus;
-        setRotation(yaw, pitch, 0);
-        setPosition(focus);
-        move(-Math.max(0, getMaxZoom((float) distance) - 0.15f), 0, 0);
+        // Hand the live orbit camera to the performance player so a cut can push in from here.
+        ActionAnimations.noteFreeCamera(new ActionAnimations.CameraPose(getPosition(), getYRot(), getXRot()));
+        var pose = ActionAnimations.cameraPose();
+        if (pose != null) {
+            // Fixed cut: absolute world position plus a locked look direction.
+            setPosition(pose.position());
+            setRotation(pose.yaw(), pose.pitch(), 0);
+            return;
+        }
+        setRotation(BattleClient.yaw, BattleClient.pitch, 0);
+        setPosition(BattleClient.focus);
+        move(-Math.max(0, getMaxZoom((float) BattleClient.distance) - 0.15f), 0, 0);
     }
 }
