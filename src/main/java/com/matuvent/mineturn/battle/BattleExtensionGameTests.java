@@ -26,6 +26,187 @@ import java.util.*;
 @GameTestHolder("mineturn")
 @PrefixGameTestTemplate(false)
 public final class BattleExtensionGameTests {
+    @GameTest(template="empty",batch="block_aura_boundaries")
+    public static void beaconRefreshSkipsCombatAndResumesOnExit(GameTestHelper h){
+        var player=player(h);var outside=player(h);outside.setPos(player.position().add(32,0,0));
+        var mob=h.spawnWithNoFreeWill(EntityType.PILLAGER,new BlockPos(9,1,8));
+        var speed=net.minecraft.world.effect.MobEffects.MOVEMENT_SPEED;
+        var regen=net.minecraft.world.effect.MobEffects.REGENERATION;
+        player.addEffect(new net.minecraft.world.effect.MobEffectInstance(speed,200));
+        var battle=new BattleSession(player,mob,definitions("ground"),player);
+        try{
+            h.assertTrue(!BattleManager.locked(outside),"Beacon outsider was recruited into battle");
+            var pos=player.blockPosition();
+            for(int i=0;i<3;i++)com.matuvent.mineturn.mixin.BeaconAuraAccess.mineturn$apply(h.getLevel(),pos,4,speed,regen);
+            h.assertTrue(player.getEffect(speed).getDuration()==200 && !player.hasEffect(regen),"Beacon refreshed or added a combat effect");
+            h.assertTrue(outside.getEffect(speed).getDuration()==340 && outside.hasEffect(regen),"Beacon lost primary/secondary effects on outsider");
+            for(int i=0;i<10;i++)BattleStatus.tick(battle.member(player));
+            com.matuvent.mineturn.mixin.BeaconAuraAccess.mineturn$apply(h.getLevel(),pos,4,speed,speed);
+            h.assertTrue(player.getEffect(speed).getDuration()==190 && player.getEffect(speed).getAmplifier()==0,"Beacon overwrote AV duration or amplifier");
+            h.assertTrue(outside.getEffect(speed).getAmplifier()==1,"Beacon lost native level-two effect");
+            player.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.LUCK,100));
+            h.assertTrue(player.hasEffect(net.minecraft.world.effect.MobEffects.LUCK),"Aura boundary globally blocked source-free command effects");
+            battle.close("test");com.matuvent.mineturn.mixin.BeaconAuraAccess.mineturn$apply(h.getLevel(),pos,4,speed,regen);
+            h.assertTrue(player.getEffect(speed).getDuration()==340 && player.hasEffect(regen),"Beacon failed to resume on exit");
+        }finally{battle.close("test");cleanup(player);cleanup(outside);mob.discard();}h.succeed();
+    }
+    @GameTest(template="empty",batch="block_aura_boundaries")
+    public static void conduitRefreshKeepsWaterAndCombatFilters(GameTestHelper h){
+        var player=player(h);var outside=player(h);outside.setPos(player.position().add(32,0,0));
+        var mob=h.spawnWithNoFreeWill(EntityType.PILLAGER,new BlockPos(9,1,8));
+        var power=net.minecraft.world.effect.MobEffects.CONDUIT_POWER;
+        player.addEffect(new net.minecraft.world.effect.MobEffectInstance(power,100));
+        var battle=new BattleSession(player,mob,definitions("ground"),player);
+        try{
+            h.assertTrue(!BattleManager.locked(outside),"Conduit outsider was recruited into battle");
+            for(var entity:List.of(player,outside)){
+                flowingWater(h,entity);((com.matuvent.mineturn.mixin.FluidAccess)entity).mineturn$updateFluid();
+                h.assertTrue(entity.isInWater(),"Conduit fixture is dry");
+            }
+            var pos=player.blockPosition();var frame=Collections.nCopies(21,pos);
+            for(int i=0;i<3;i++)com.matuvent.mineturn.mixin.ConduitAuraAccess.mineturn$apply(h.getLevel(),pos,frame);
+            h.assertTrue(player.getEffect(power).getDuration()==100 && outside.getEffect(power).getDuration()==260,"Conduit ignored combat membership");
+            for(int i=0;i<5;i++)BattleStatus.tick(battle.member(player));
+            com.matuvent.mineturn.mixin.ConduitAuraAccess.mineturn$apply(h.getLevel(),pos,frame);
+            h.assertTrue(player.getEffect(power).getDuration()==95,"Conduit reset AV countdown");
+            player.removeEffect(power);com.matuvent.mineturn.mixin.ConduitAuraAccess.mineturn$apply(h.getLevel(),pos,frame);
+            h.assertTrue(!player.hasEffect(power),"Conduit granted new effect during combat");
+            outside.removeEffect(power);outside.setPos(outside.position().add(0,5,0));
+            ((com.matuvent.mineturn.mixin.FluidAccess)outside).mineturn$updateFluid();
+            com.matuvent.mineturn.mixin.ConduitAuraAccess.mineturn$apply(h.getLevel(),pos,frame);
+            h.assertTrue(!outside.hasEffect(power),"Conduit lost native water requirement");
+            battle.close("test");com.matuvent.mineturn.mixin.ConduitAuraAccess.mineturn$apply(h.getLevel(),pos,frame);
+            h.assertTrue(player.getEffect(power).getDuration()==260,"Conduit failed to resume on exit");
+        }finally{battle.close("test");cleanup(player);cleanup(outside);mob.discard();}h.succeed();
+    }
+    private static void flowingWater(GameTestHelper h,net.minecraft.world.entity.Entity entity){
+        var center=entity.blockPosition();
+        for(int x=-2;x<=2;x++)for(int z=-2;z<=2;z++)for(int y=0;y<=2;y++)
+            h.getLevel().setBlock(center.offset(x,y,z),Blocks.WATER.defaultBlockState()
+                    .setValue(net.minecraft.world.level.block.LiquidBlock.LEVEL,x+3),2);
+    }
+    @GameTest(template="empty")
+    public static void fluidFlowFreezesButContactCachesUpdate(GameTestHelper h){
+        var player=player(h);var horse=mount(h,player);
+        var mob=h.spawnWithNoFreeWill(EntityType.PILLAGER,new BlockPos(9,1,8));
+        var outside=h.spawnWithNoFreeWill(EntityType.PILLAGER,new BlockPos(9,1,2));
+        var battle=new BattleSession(player,mob,definitions("ground"),player);
+        try{
+            for(var entity:List.of(horse,player,mob,outside)){
+                flowingWater(h,entity);entity.setDeltaMovement(Vec3.ZERO);
+                ((com.matuvent.mineturn.mixin.FluidAccess)entity).mineturn$updateFluid();
+                ((com.matuvent.mineturn.mixin.FluidAccess)entity).mineturn$updateEyes();
+                h.assertTrue(entity.isInWater() && entity.isEyeInFluid(net.minecraft.tags.FluidTags.WATER)
+                        && entity.getFluidTypeHeight(net.neoforged.neoforge.common.NeoForgeMod.WATER_TYPE.value())>0,"Flow freeze lost water contact cache");
+                h.assertTrue(entity==outside?entity.getDeltaMovement().lengthSqr()>0:entity.getDeltaMovement().equals(Vec3.ZERO),"Flow ignored battle membership");
+            }
+            mob.setDeltaMovement(new Vec3(0.2,0.3,0.4));
+            BattleManager.authorized(()->((com.matuvent.mineturn.mixin.FluidAccess)mob).mineturn$updateFluid());
+            h.assertTrue(mob.getDeltaMovement().equals(new Vec3(0.2,0.3,0.4)),"Flow altered explicit skill velocity inside authorization");
+            battle.close("test");mob.setDeltaMovement(Vec3.ZERO);
+            ((com.matuvent.mineturn.mixin.FluidAccess)mob).mineturn$updateFluid();
+            h.assertTrue(mob.getDeltaMovement().lengthSqr()>0,"Flow did not resume on exit");
+            mob.setPos(mob.position().add(0,5,0));
+            ((com.matuvent.mineturn.mixin.FluidAccess)mob).mineturn$updateFluid();
+            ((com.matuvent.mineturn.mixin.FluidAccess)mob).mineturn$updateEyes();
+            h.assertTrue(!mob.isInWater() && !mob.isEyeInFluid(net.minecraft.tags.FluidTags.WATER)
+                    && mob.getFluidTypeHeight(net.neoforged.neoforge.common.NeoForgeMod.WATER_TYPE.value())==0,"Water cache remained stale on dry land");
+        }finally{battle.close("test");cleanup(player);horse.discard();mob.discard();outside.discard();}h.succeed();
+    }
+    @GameTest(template="empty")
+    public static void bubbleColumnsFreezeOnlyBattleVelocity(GameTestHelper h){
+        var player=player(h);var horse=mount(h,player);
+        var mob=h.spawnWithNoFreeWill(EntityType.PILLAGER,new BlockPos(9,1,8));
+        var outside=h.spawnWithNoFreeWill(EntityType.PILLAGER,new BlockPos(9,1,2));
+        var battle=new BattleSession(player,mob,definitions("ground"),player);
+        try{
+            var velocity=new Vec3(0.2,0.1,0.3);
+            for(var entity:List.of(player,horse,mob))for(boolean down:new boolean[]{false,true}){
+                entity.setDeltaMovement(velocity);entity.fallDistance=8;
+                entity.onAboveBubbleCol(down);
+                h.assertTrue(entity.getDeltaMovement().equals(velocity),"Bubble surface pushed combatant");
+                entity.onInsideBubbleColumn(down);
+                h.assertTrue(entity.getDeltaMovement().equals(velocity) && entity.fallDistance==0,"Bubble freeze lost velocity or fall-distance reset");
+            }
+            for(boolean down:new boolean[]{false,true}){
+                outside.setDeltaMovement(Vec3.ZERO);outside.onInsideBubbleColumn(down);
+                h.assertTrue(down?outside.getDeltaMovement().y<0:outside.getDeltaMovement().y>0,"Bubble column stopped affecting outsider");
+                outside.setDeltaMovement(Vec3.ZERO);outside.onAboveBubbleCol(down);
+                h.assertTrue(down?outside.getDeltaMovement().y<0:outside.getDeltaMovement().y>0,"Bubble surface stopped affecting outsider");
+            }
+            battle.close("test");mob.setDeltaMovement(Vec3.ZERO);mob.onInsideBubbleColumn(false);
+            h.assertTrue(mob.getDeltaMovement().y>0,"Bubble lift did not resume on exit");
+        }finally{battle.close("test");cleanup(player);horse.discard();mob.discard();outside.discard();}h.succeed();
+    }
+    @GameTest(template="empty")
+    public static void motionSequenceRejectsStalePositionsAndSnapshotRestarts(GameTestHelper h){
+        var order=new com.matuvent.mineturn.network.MotionOrder();
+        h.assertTrue(order.acceptSnapshot(0) && order.acceptMotion(1) && order.acceptMotion(2),"Ordered movement rejected");
+        h.assertTrue(!order.acceptMotion(1) && !order.acceptMotion(2),"Stale/duplicate position accepted");
+        h.assertTrue(order.acceptSnapshot(3) && !order.acceptMotion(2),"Late active motion can undo stopped snapshot");
+        h.assertTrue(order.acceptMotion(4) && !order.acceptSnapshot(3),"Old stopped snapshot can overwrite next movement");
+        h.assertTrue(order.acceptSnapshot(4) && !order.acceptMotion(4),"Snapshot watermark failed to suppress duplicate movement");
+        order.reset();h.assertTrue(order.acceptSnapshot(0) && order.acceptMotion(1),"New battle retained previous sequence");h.succeed();
+    }
+    @GameTest(template="empty")
+    public static void movementSnapshotsCarrySequenceAndStopState(GameTestHelper h){
+        var player=player(h);var mob=h.spawnWithNoFreeWill(EntityType.PILLAGER,new BlockPos(9,1,8));
+        var battle=new BattleSession(player,mob,definitions("ground"),player);
+        var buffer=new net.minecraft.network.FriendlyByteBuf(io.netty.buffer.Unpooled.buffer());
+        try{
+            var start=player.position();battle.beginMoveTo(player,start.add(1,0,0));var first=battle.snapshot(player);
+            h.assertTrue(first.moving() && first.motionSequence()>0,"Start snapshot missing motion state");
+            battle.tickMotion();var progress=battle.snapshot(player);
+            h.assertTrue(progress.moving() && progress.motionSequence()>first.motionSequence(),"Same-revision positions have no sequence progress");
+            finishMovement(player);var stop=battle.snapshot(player);
+            h.assertTrue(!stop.moving() && stop.motionSequence()>progress.motionSequence(),"Stop snapshot missing watermark");
+            com.matuvent.mineturn.network.BattleNetwork.State.CODEC.encode(buffer,stop);
+            var restored=com.matuvent.mineturn.network.BattleNetwork.State.CODEC.decode(buffer);
+            h.assertTrue(restored.equals(stop) && !buffer.isReadable(),"State codec lost movement watermark");
+        }finally{buffer.release();battle.close("test");cleanup(player);mob.discard();}h.succeed();
+    }
+    @GameTest(template="empty")
+    public static void cleanupFailureReleasesEveryMemberAndMount(GameTestHelper h){
+        class BrokenPillager extends net.minecraft.world.entity.monster.Pillager {
+            boolean fail;
+            BrokenPillager(){super(EntityType.PILLAGER,h.getLevel());}
+            @Override public void stopUsingItem(){if(fail)throw new IllegalStateException("injected cleanup failure");super.stopUsingItem();}
+            @Override public net.minecraft.commands.CommandSourceStack createCommandSourceStack(){
+                if(fail)throw new IllegalStateException("injected leave callback failure");return super.createCommandSourceStack();
+            }
+        }
+        var player=player(h);var horse=mount(h,player);var mob=new BrokenPillager();mob.setPos(Vec3.atBottomCenterOf(h.absolutePos(new BlockPos(9,1,8))));h.getLevel().addFreshEntity(mob);
+        var battle=new BattleSession(player,mob,definitions("ground"),player);
+        try{
+            battle.member(mob).guarding=true;
+            // Independent callback instance survives remove's per-member callback filtering.
+            battle.callbacks.add(new FunctionAi.Invocation(new BattleSession.Member(mob,null),ResourceLocation.parse("mineturn_test:leave"),"on_leave","",null));
+            battle.scheduled.add(new BattleSession.Scheduled(25,0,battle.member(mob),()->{throw new AssertionError("Closed battle executed timer");}));
+            mob.fail=true;BattleManager.closeSafely(battle,"test failure");
+            h.assertTrue(battle.closed && battle.members.isEmpty() && !BattleManager.locked(player) && !BattleManager.locked(mob) && !BattleManager.locked(horse),"Failed cleanup stranded member/mount lock");
+            h.assertTrue(battle.scheduled.isEmpty() && battle.callbacks.isEmpty() && battle.motion==null && battle.shot==null,"Failed cleanup retained pending work");
+            battle.close("again");
+            h.assertTrue(BattleManager.ACTIVE.values().stream().noneMatch(b->b==battle),"Repeated close restored membership");
+        }finally{mob.fail=false;battle.close("test");cleanup(player);horse.discard();mob.discard();}h.succeed();
+    }
+    @GameTest(template="empty",batch="reload_lifecycle")
+    public static void reloadTrackingBalancesSyncFailureAndOverlappingFutures(GameTestHelper h){
+        h.assertTrue(!BattleManager.reloading(),"Reload fixture started with active reload");
+        try{
+            BattleManager.trackReload(()->{throw new IllegalStateException("injected synchronous reload failure");});
+            throw new AssertionError("Synchronous reload error swallowed");
+        }catch(IllegalStateException expected){h.assertTrue(expected.getMessage().equals("injected synchronous reload failure"),"Unexpected reload exception");}
+        h.assertTrue(!BattleManager.reloading(),"Synchronous failure leaked reload gate");
+        var first=new java.util.concurrent.CompletableFuture<Void>();var second=new java.util.concurrent.CompletableFuture<Void>();
+        try{
+            h.assertTrue(BattleManager.trackReload(()->first)==first,"Tracking replaced native future");BattleManager.trackReload(()->second);
+            first.completeExceptionally(new IllegalArgumentException("injected async failure"));
+            h.assertTrue(BattleManager.reloading(),"One completion opened gate while another reload was pending");
+            second.complete(null);h.assertTrue(!BattleManager.reloading(),"Completed reloads left gate closed");
+            var third=new java.util.concurrent.CompletableFuture<Void>();BattleManager.trackReload(()->third);third.cancel(false);
+            h.assertTrue(!BattleManager.reloading(),"Cancelled future leaked reload gate");
+        }finally{first.complete(null);second.complete(null);}h.succeed();
+    }
     @GameTest(template="empty")
     public static void pistonAndShulkerPushCannotMoveBattleBodies(GameTestHelper h){
         var player=player(h);var horse=mount(h,player);var mob=h.spawnWithNoFreeWill(EntityType.PILLAGER,new BlockPos(10,1,8));
@@ -1891,9 +2072,11 @@ public final class BattleExtensionGameTests {
         var json=JsonParser.parseString("{\"action\":\"grant_example:laser\",\"name\":\"魔法\",\"icon\":\"minecraft:beacon\",\"cost\":{\"resource\":\"mineturn:experience_levels\",\"amount\":2}}").getAsJsonObject();
         h.assertTrue(com.matuvent.mineturn.data.GrantedAction.parse(json).cost().amount()==2,"Resource JSON not parsed");
         for(double amount:new double[]{0,-1,1.5,Double.NaN,Double.POSITIVE_INFINITY,1000001}) {
-            try{new com.matuvent.mineturn.api.CombatResources.Cost("mineturn:experience_levels",amount);throw new AssertionError("Invalid resource cost accepted: "+amount);}catch(IllegalArgumentException expected){}
+            try{new com.matuvent.mineturn.api.CombatResources.Cost("mineturn:experience_levels",amount);throw new AssertionError("Invalid resource cost accepted: "+amount);}catch(IllegalArgumentException expected){
+                h.assertTrue(expected.getMessage().equals(amount==1.5?"Experience level cost must be an integer":"Resource cost must be finite and within (0,1000000]"),"Resource cost rejected for wrong reason: "+expected.getMessage());
+            }
         }
-        try{new com.matuvent.mineturn.api.CombatResources.Cost("absent:mana",1);throw new AssertionError("Missing resource provider accepted");}catch(IllegalArgumentException expected){}
+        try{new com.matuvent.mineturn.api.CombatResources.Cost("absent:mana",1);throw new AssertionError("Missing resource provider accepted");}catch(IllegalArgumentException expected){h.assertTrue(expected.getMessage().equals("Unknown combat resource: absent:mana"),"Missing resource rejected for wrong reason: "+expected.getMessage());}
         h.succeed();
     }
     @GameTest(template="empty")
@@ -2264,7 +2447,7 @@ public final class BattleExtensionGameTests {
             h.assertTrue(packet.equals(com.matuvent.mineturn.network.BattleNetwork.Preview.CODEC.decode(buffer)), "Route preview lost points or request identity");
             h.assertTrue(!buffer.isReadable(), "Route preview left unread bytes");
             buffer.clear();
-            var motion=new com.matuvent.mineturn.network.BattleNetwork.Motion(packet.battle(),new Vec3(3.5,7,8.5),true);
+            var motion=new com.matuvent.mineturn.network.BattleNetwork.Motion(packet.battle(),27,new Vec3(3.5,7,8.5),true);
             com.matuvent.mineturn.network.BattleNetwork.Motion.CODEC.encode(buffer,motion);
             h.assertTrue(motion.equals(com.matuvent.mineturn.network.BattleNetwork.Motion.CODEC.decode(buffer)),"Motion codec lost position or activity");
         } finally { buffer.release(); }
@@ -2334,11 +2517,31 @@ public final class BattleExtensionGameTests {
     public static void invalidMobilityAndSkillParameters(GameTestHelper h) {
         var files = new HashMap<ResourceLocation, com.google.gson.JsonElement>();
         files.put(ResourceLocation.parse("test:mobs/husk"), JsonParser.parseString("{\"entity\":\"minecraft:husk\",\"movement_mode\":\"teleport\",\"ai\":{\"on_turn\":\"test:turn\"}}"));
-        try { CombatData.parse(files); throw new AssertionError("Invalid mobility accepted"); } catch(IllegalArgumentException expected) {}
+        try { CombatData.parse(files); throw new AssertionError("Invalid mobility accepted"); } catch(IllegalArgumentException expected) {
+            h.assertTrue(expected.getMessage().contains("Unknown movement_mode teleport"),"Mobility rejected for wrong reason: "+expected.getMessage());
+        }
         files.clear();
         files.put(ResourceLocation.parse("test:actions/burst"), JsonParser.parseString("{\"name\":\"bad\",\"effect\":\"mineturn:burst\",\"amount\":4,\"range\":4,\"parameters\":{\"radius\":-1}}"));
-        try { CombatData.parse(files); throw new AssertionError("Invalid skill parameter accepted"); } catch(IllegalArgumentException expected) {}
+        try { CombatData.parse(files); throw new AssertionError("Invalid skill parameter accepted"); } catch(IllegalArgumentException expected) {
+            h.assertTrue(expected.getMessage().contains("Invalid action parameter radius"),"Skill rejected for wrong reason: "+expected.getMessage());
+        }
         h.succeed();
+    }
+    @GameTest(template="empty")
+    public static void missingLegacyAiStateSkipsOnlyItsAction(GameTestHelper h) {
+        var player=player(h);var mob=h.spawnWithNoFreeWill(EntityType.PILLAGER,new BlockPos(8,1,2));
+        var data=definitions("ground");var brains=new HashMap<>(data.mobs());
+        var state=new CombatData.State("approach",List.of(new CombatData.Transition("out_of_reach","missing")),List.of());
+        brains.put("minecraft:pillager",new CombatData.Brain(100,1.5,"start",Map.of("start",state),null,"ground"));
+        var battle=new BattleSession(player,mob,new CombatData.Snapshot(data.actions(),Map.copyOf(brains),data.items(),data.sources()),player);
+        try {
+            Vec3 before=mob.position();
+            battle.member(mob).state="missing";battle.ai(mob);
+            h.assertTrue(battle.motion==null && battle.budget.canAct(),"Missing initial state spent an action");
+            battle.member(mob).state="start";battle.ai(mob);
+            h.assertTrue(battle.member(mob).state.equals("missing") && battle.motion==null && mob.position().equals(before)
+                    && battle.budget.canAct() && BattleManager.ACTIVE.get(player.getUUID())==battle,"Missing transition target damaged battle state");
+        }finally{battle.close("test");cleanup(player);mob.discard();}h.succeed();
     }
     @GameTest(template="empty")
     public static void functionCanMoveVerticallyOnlyOnTurn(GameTestHelper h) {
@@ -3437,18 +3640,22 @@ public final class BattleExtensionGameTests {
         var right=h.spawnWithNoFreeWill(EntityType.PILLAGER,new BlockPos(8,1,3));
         var battle=new BattleSession(player,main,definitions("ground"),player);battle.add(left);battle.add(right);
         try {
-            for(int remaining=1;remaining<=2;remaining++) {
+            for(boolean loaded:new boolean[]{false,true})for(int remaining:new int[]{1,2,100}) {
                 main.setHealth(24);left.setHealth(24);right.setHealth(24);
                 var bow=new ItemStack(net.minecraft.world.item.Items.CROSSBOW);
                 bow.enchant(h.getLevel().registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT).getHolderOrThrow(net.minecraft.world.item.enchantment.Enchantments.MULTISHOT),1);
                 bow.setDamageValue(bow.getMaxDamage()-remaining);player.getInventory().setItem(0,bow);
+                var component=net.minecraft.core.component.DataComponents.CHARGED_PROJECTILES;
+                if(loaded){var arrow=new ItemStack(net.minecraft.world.item.Items.ARROW);bow.set(component,net.minecraft.world.item.component.ChargedProjectiles.of(List.of(arrow,arrow,arrow)));}
                 player.getInventory().setItem(10,new ItemStack(net.minecraft.world.item.Items.ARROW,2));
                 battle.budget=new TurnBudget(4);battle.member(player).cooldowns.clear();
                 battle.use(player,0,"mineturn:shoot",main.getId());var shot=battle.shot;
-                h.assertTrue(bow.isEmpty() && shot.weapon.get(net.minecraft.core.component.DataComponents.CHARGED_PROJECTILES).getItems().size()==remaining,"Broken bow kept unfired lanes");
+                int lanes=Math.min(remaining,3);
+                h.assertTrue(bow.isEmpty()==(remaining<=2) && (bow.isEmpty() || bow.get(component).isEmpty())
+                        && shot.weapon.get(component).getItems().size()==lanes,"Live charge or launched lane snapshot incorrect");
                 battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
                 int sides=(left.getHealth()<24?1:0)+(right.getHealth()<24?1:0);
-                h.assertTrue(main.getHealth()==18 && sides==remaining-1 && player.getInventory().getItem(10).getCount()==1,"Broken crossbow fired extra lanes or consumed extra ammo");
+                h.assertTrue(main.getHealth()==18 && sides==lanes-1 && player.getInventory().getItem(10).getCount()==(loaded?2:1),"Crossbow fired extra lanes or consumed extra ammo");
             }
         }finally{battle.close("test");cleanup(player);main.discard();left.discard();right.discard();}h.succeed();
     }

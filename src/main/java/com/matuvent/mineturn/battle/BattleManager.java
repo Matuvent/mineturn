@@ -30,14 +30,32 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class BattleManager {
     static final Map<UUID, BattleSession> ACTIVE = new ConcurrentHashMap<>();
     private static final ThreadLocal<Boolean> EXECUTING = ThreadLocal.withInitial(() -> false);
-    private static int reloads;
+    private static final java.util.concurrent.atomic.AtomicInteger reloads=new java.util.concurrent.atomic.AtomicInteger();
     private static final Set<net.minecraft.server.MinecraftServer> STOPPING = ConcurrentHashMap.newKeySet();
     public static java.util.function.Predicate<Entity> clientStatusLocked=entity->false;
     public static void beginReload() {
-        reloads++;
-        for (var battle : new HashSet<>(ACTIVE.values())) battle.close("数据包重载，已结束战斗。");
+        reloads.incrementAndGet();
+        for (var battle : new HashSet<>(ACTIVE.values())) closeSafely(battle,"数据包重载，已结束战斗。");
     }
-    public static void finishReload() { reloads = Math.max(0, reloads - 1); }
+    public static void finishReload() { reloads.updateAndGet(count->Math.max(0,count-1)); }
+    static boolean reloading(){return reloads.get()>0;}
+    public static java.util.concurrent.CompletableFuture<Void> trackReload(java.util.function.Supplier<java.util.concurrent.CompletableFuture<Void>> operation){
+        beginReload();
+        try{
+            var future=java.util.Objects.requireNonNull(operation.get());
+            future.whenComplete((value,error)->finishReload());
+            return future;
+        }catch(RuntimeException | Error error){finishReload();throw error;}
+    }
+    static void closeSafely(BattleSession battle,String reason){
+        try{battle.close(reason);}
+        catch(RuntimeException error){
+            MineTurn.LOGGER.error("Battle {} emergency cleanup failed",battle.id,error);
+            battle.closed=true;
+            for(var member:List.copyOf(battle.members.values()))BattleRiding.forget(member);
+            ACTIVE.entrySet().removeIf(entry->entry.getValue()==battle);
+        }
+    }
     private BattleManager() {}
     @SubscribeEvent(priority=net.neoforged.bus.api.EventPriority.LOWEST)
     public static void explosion(net.neoforged.neoforge.event.level.ExplosionEvent.Detonate event){BattleExplosion.filter(event);}
@@ -183,14 +201,14 @@ public final class BattleManager {
         } catch (IllegalArgumentException | IllegalStateException ex) {
             battle.message("无法执行：" + ex.getMessage()); battle.sync(player);
         } catch (RuntimeException ex) {
-            MineTurn.LOGGER.error("Battle action failed", ex); battle.close("战斗异常，已恢复控制。");
+            MineTurn.LOGGER.error("Battle action failed", ex); closeSafely(battle,"战斗异常，已恢复控制。");
         }
     }
     public static void submitAim(ServerPlayer player, BattleNetwork.AimSubmit request) {
         var battle=ACTIVE.get(player.getUUID());
         if(battle==null || !battle.id.equals(request.battle()))return;
         try { battle.submitShot(player,request.token(),System.nanoTime()-(battle.shot==null ? 0 : battle.shot.latencyCompensationNanos)); }
-        catch(RuntimeException error){MineTurn.LOGGER.error("Ranged action failed",error);battle.close("远程动作异常，已结束战斗。");}
+        catch(RuntimeException error){MineTurn.LOGGER.error("Ranged action failed",error);closeSafely(battle,"远程动作异常，已结束战斗。");}
     }
     static Entity damageOwner(net.minecraft.world.damagesource.DamageSource source) {
         Entity owner=source.getEntity();
@@ -266,7 +284,7 @@ public final class BattleManager {
                     current.directHostilities.add(Set.of(attacker.getUUID(),event.getEntity().getUUID()));
             }
         }
-        if (reloads > 0 || authorized() || event.getEntity().level().isClientSide || event.getNewDamage() <= 0
+        if (reloading() || authorized() || event.getEntity().level().isClientSide || event.getNewDamage() <= 0
                 || STOPPING.contains(event.getEntity().getServer())) return;
         LivingEntity victim = event.getEntity();
         if (!(damageOwner(event.getSource()) instanceof LivingEntity attacker) || !victim.isAlive() || !attacker.isAlive()) return;
@@ -320,7 +338,7 @@ public final class BattleManager {
     @SubscribeEvent public static void tick(ServerTickEvent.Post event) {
         for (var battle : new HashSet<>(ACTIVE.values())) {
             try { battle.tick(); }
-            catch (RuntimeException ex) { MineTurn.LOGGER.error("Battle failed", ex); battle.close("战斗异常，已恢复控制。"); }
+            catch (RuntimeException ex) { MineTurn.LOGGER.error("Battle failed", ex); closeSafely(battle,"战斗异常，已恢复控制。"); }
         }
     }
     @SubscribeEvent public static void logout(PlayerEvent.PlayerLoggedOutEvent event) {
@@ -335,10 +353,10 @@ public final class BattleManager {
         STOPPING.add(event.getServer());
         // ServerStopping fires before player/world saving; return native clocks and remove temporary units first.
         for (var battle : new HashSet<>(ACTIVE.values()))
-            if (battle.level.getServer() == event.getServer()) battle.close("服务器关闭，战斗已结束。");
+            if (battle.level.getServer() == event.getServer()) closeSafely(battle,"服务器关闭，战斗已结束。");
     }
     @SubscribeEvent public static void stopped(ServerStoppedEvent event) {
-        ACTIVE.clear(); BattleRiding.clear(); reloads = 0; STOPPING.remove(event.getServer());
+        ACTIVE.clear(); BattleRiding.clear(); reloads.set(0); STOPPING.remove(event.getServer());
     }
     @SubscribeEvent public static void commands(RegisterCommandsEvent event) {
         FunctionAi.register(event.getDispatcher());
@@ -363,7 +381,7 @@ public final class BattleManager {
         if (battle == null) { player.sendSystemMessage(Component.literal("当前未参战。生存模式攻击未被秒杀的已配置怪物即可测试。")); return 0; }
         try {
             if (operation.equals("status")) { battle.sync(player); player.sendSystemMessage(Component.literal("/mineturn move <dx> <dz> | attack | sprint | retreat | flee | end")); return 1; }
-            if (operation.equals("abort")) { battle.close("管理员结束战斗。"); return 1; }
+            if (operation.equals("abort")) { closeSafely(battle,"管理员结束战斗。"); return 1; }
             LivingEntity enemy = battle.nearestEnemy(player);
             var definition = action == null ? null : battle.definitions.actions().get(action);
             int target = definition != null && definition.self() ? player.getId() : enemy == null ? -1 : enemy.getId();

@@ -48,6 +48,7 @@ final class BattleSession {
         idleTicks=0;lastActivity=0;return result;
     }
     long revision;
+    long motionSequence;
     double nextRegen = 100;
     boolean closed;
     String lastMessage = "请选择行动。";
@@ -107,6 +108,7 @@ final class BattleSession {
         double beamStart, beamEnd, beamRange;
         boolean aiFailed;
         double nextStatusAv;
+        // Logical status time: seeded on entry, then advanced by AV, never by waiting in the GUI.
         int statusTicks;
         int suffocationTicks;
         double lastDamageAv=Double.NEGATIVE_INFINITY;
@@ -314,7 +316,7 @@ final class BattleSession {
                 member(player).anchor, center, nearest == null ? 0 : nearest.getHealth(), nearest == null ? 0 : nearest.getMaxHealth(),
                 own && shot == null && budget.canMove() && (!engaged(player) || budget.disengaged()), own && budget.canAct(), engaged(player), own && budget.canAct() && canFlee(player),
                 own ? budget.remaining() : movement(player), lastMessage, slots, fighters, queue,
-                budget.mainActions(),budget.bonusActions(),actor instanceof ServerPlayer?(lastActivity!=budget.activity()?30:(600-idleTicks+19)/20):-1);
+                budget.mainActions(),budget.bonusActions(),actor instanceof ServerPlayer?(lastActivity!=budget.activity()?30:(600-idleTicks+19)/20):-1,motionSequence,motion!=null && motion.player==player);
     }
     String displayName(LivingEntity entity) {
         String name = entity.getName().getString();
@@ -471,13 +473,48 @@ final class BattleSession {
         if (!hasOpponents()) close("战斗结束。");
         else if (actor == null) next();
     }
+    private void cleanup(String step,Runnable work) {
+        try{work.run();}catch(RuntimeException error){MineTurn.LOGGER.error("Battle {} cleanup failed: {}",id,step,error);}
+    }
+    private void releaseAfterFailure(Member member,String reason) {
+        var entity=member.entity;
+        // Remove bookkeeping first; third-party callbacks or packet failures must never retain the lock.
+        members.remove(entity.getUUID(),member);BattleManager.ACTIVE.remove(entity.getUUID(),this);
+        clock.remove(entity);BattleRiding.forget(member);
+        cleanup("native cooldowns",()->BattleItemCooldowns.clock(this,member));
+        cleanup("crossbow pose",()->BattleRaid.endCharge(member));
+        cleanup("mount status",()->BattleRiding.release(member));
+        cleanup("guard",()->{if(member.guarding)entity.stopUsingItem();});
+        cleanup("status clock",()->BattleStatus.sync(entity,false));
+        cleanup("velocity",()->entity.setDeltaMovement(Vec3.ZERO));
+        if(entity instanceof BattleDevice || entity instanceof BattleBullet || BattleSummons.temporary(entity))
+            cleanup("temporary entity",entity::discard);
+        if(entity instanceof ServerPlayer player){
+            cleanup("returning tridents",()->BattleTridents.leave(this,player));
+            cleanup("close packet",()->BattleNetwork.send(player,BattleNetwork.State.closed(id,++revision,reason)));
+        }
+    }
     void close(String reason) {
         if (closed) return;
         closed = true;
-        for(var field:List.copyOf(fields.values()))BattleFields.delete(this,field);
-        for(var cloud:clouds)cloud.discard();clouds.clear();
-        for (Member member : new ArrayList<>(members.values())) remove(member.entity, reason);
-        scheduled.clear(); drainCallbacks();
+        var participants=new ArrayList<>(members.values());
+        for(var field:List.copyOf(fields.values()))cleanup("field",()->BattleFields.delete(this,field));
+        for(var cloud:List.copyOf(clouds))cleanup("cloud",cloud::discard);
+        clouds.clear();
+        for (Member member : participants) {
+            try{remove(member.entity,reason);}
+            catch(RuntimeException error){
+                MineTurn.LOGGER.error("Battle {} member cleanup failed: {}",id,member.entity.getUUID(),error);
+                releaseAfterFailure(member,reason);
+            }
+        }
+        // A failed nested removal must not strand a member outside the original cleanup order.
+        for(var member:new ArrayList<>(members.values()))releaseAfterFailure(member,reason);
+        for(var fang:List.copyOf(fangs))cleanup("fang",fang::discard);
+        fields.clear();summons.clear();fangs.clear();scheduled.clear();returningTridents.clear();
+        motion=null;shot=null;actor=null;
+        cleanup("leave callbacks",this::drainCallbacks);callbacks.clear();
+        BattleManager.ACTIVE.entrySet().removeIf(entry->entry.getValue()==this);
     }
     void next() {
         if (motion != null) throw new IllegalStateException("请等待移动完成。");
@@ -558,7 +595,7 @@ final class BattleSession {
         message("正在沿路线移动…");
     }
     private void sendMotion(LivingEntity entity, boolean active) {
-        if(entity instanceof ServerPlayer player)BattleNetwork.send(player,new BattleNetwork.Motion(id,player.position(),active));
+        if(entity instanceof ServerPlayer player)BattleNetwork.send(player,new BattleNetwork.Motion(id,++motionSequence,player.position(),active));
     }
     void cancelRidingMotion(LivingEntity entity) {sendMotion(entity,false);motion=null;}
     void tickMotion() {
@@ -1230,7 +1267,7 @@ final class BattleSession {
         try {
             int count = 0;
             while (!callbacks.isEmpty() && count++ < 64) FunctionAi.run(this, callbacks.removeFirst());
-            if (!callbacks.isEmpty()) { callbacks.clear(); MineTurn.LOGGER.error("AI callback limit reached for battle {}", id); }
+            if (!callbacks.isEmpty()) { callbacks.clear(); MineTurn.LOGGER.error("AI callback limit reached for battle {}", id); message("AI 回调次数超过上限，已清理剩余回调，请检查数据包逻辑。"); }
         } finally { drainingCallbacks = false; }
     }
     void schedule(Member member, ResourceLocation function, double delay, UUID target) {
@@ -1301,10 +1338,12 @@ final class BattleSession {
         var brain = member.brain;
         boolean inReach = BattleManager.gap(mob.getBoundingBox(), target.getBoundingBox()) <= brain.reach() && mob.hasLineOfSight(target);
         var state = brain.states().get(member.state);
+        if (state == null) return;
         for (var transition : state.transitions()) {
             if (transition.condition().equals("in_reach") == inReach) { member.state = transition.to(); break; }
         }
         state = brain.states().get(member.state);
+        if (state == null) return;
         if (state.behavior().equals("approach")) {
             if (engaged(mob)) budget.disengage();
             var route=pursuitRoute(mob,target);

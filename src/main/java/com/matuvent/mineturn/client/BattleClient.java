@@ -34,6 +34,7 @@ public final class BattleClient {
     private static int pendingTicks;
     public static boolean pending;
     private static boolean moving;
+    private static final com.matuvent.mineturn.network.MotionOrder motionOrder=new com.matuvent.mineturn.network.MotionOrder();
     private static Vec3 motionTarget;
     private static final com.matuvent.mineturn.network.StatusLocks statusLocks=new com.matuvent.mineturn.network.StatusLocks();
     public static BattleNetwork.Aim aim;
@@ -67,7 +68,7 @@ public final class BattleClient {
             if(active() && state.battle().equals(packet.battle()) && state.revision()==packet.revision())offers=packet.actions();
         };
         BattleNetwork.receiveMotion = packet -> {
-            if (!active() || !state.battle().equals(packet.battle())) return;
+            if (!active() || !state.battle().equals(packet.battle()) || !motionOrder.acceptMotion(packet.sequence())) return;
             moving=packet.active(); motionTarget=packet.position();
         };
         BattleNetwork.receiveAim = packet -> {
@@ -106,6 +107,7 @@ public final class BattleClient {
         boolean entering = !active() || !state.battle().equals(packet.battle());
         if (!entering && packet.revision() < state.revision()) return;
         if (entering) {
+            motionOrder.reset();moving=false;motionTarget=null;
             previousCamera = mc.options.getCameraType();
             yaw = mc.player.getYRot(); pitch = 45; distance = 10;
             focus = packet.enemyPosition().add(0, 1, 0);
@@ -115,10 +117,12 @@ public final class BattleClient {
         }
         boolean relocated = entering || state.anchor().distanceToSqr(packet.anchor()) > 1e-8;
         if (entering || state.revision() != packet.revision()) { preview = null; offers=java.util.List.of(); }
+        boolean motionCurrent=motionOrder.acceptSnapshot(packet.motionSequence());
+        if(motionCurrent){moving=packet.moving();motionTarget=packet.anchor();}
         state = packet;
         pending = false;
         mc.options.setCameraType(CameraType.THIRD_PERSON_BACK);
-        if (relocated && !moving) {
+        if (relocated && !moving && motionCurrent) {
             positionLocal(packet.anchor());
             mc.player.setOldPosAndRot();
             mc.player.walkAnimation.setSpeed(0);
@@ -129,7 +133,7 @@ public final class BattleClient {
     }
     public static void reset() {
         offers=java.util.List.of();
-        moving=false; motionTarget=null;
+        moving=false; motionTarget=null;motionOrder.reset();
         statusLocks.clear();
         aim=null;aimSubmitted=false;
         Minecraft mc = Minecraft.getInstance();

@@ -166,13 +166,9 @@ CombatEffects.register(ResourceLocation.parse("mymod:my_effect"), new CombatEffe
 
 | 级别 | 位置 | 问题 |
 | --- | --- | --- |
-| **Critical** | `BattleManager.java:323`、`:186`、`:193`、`:38`、`:338` | 异常处理块里的 `close()` 调用**自身没有保护**，而 `close()` 确实会抛（经 `BattleSession.java:480` 的 `drainCallbacks()`，或 `BattleSession.java:1252` 的安全上限 `IllegalStateException`）。单次清理失败可能中断服务端 tick。 |
-| **Major** | `BattleManager.java:33`、`:269` + `ServerReloadMixin.java:21` | 如果 `/reload` 的完成 future 永不执行，`reloads` 计数器再也不会归零，此后 `damaged()` 会**静默拒绝开启任何新战斗，且没有日志或玩家提示**。 |
 | **Major** | `RangedShot.java:29-35`、`BattleManager.java:192` | 远程命中窗口的 `low`/`high` 完全确定，命中结果只取决于服务端收到 `AimSubmit` 的时间戳。改写过的客户端可以通过精确控制发包时刻做到**每发必中**。 |
-| Minor | `BattleSession.java:1233` | AI 回调队列溢出时整队丢弃，只写日志，**玩家侧无任何提示**。 |
-| Minor | `BattleSession.java:1303-1308` 对比 `:394` | `ai()` 取状态时没有 `hasAiActionBudget()` 里那样的 null 守卫。当前不可达，但仅靠数据包校验严格来保证。 |
-| Minor | `battle/BattleStatus.java:32` 对比 `:16` | `statusTicks` 与 `entity.tickCount` 表达同一个概念，却是两个不同的时钟。 |
-| Minor | `network/BattleNetwork.java:138-143`、`client/BattleClient.java:69-72` | `Motion` 包不带 revision，而 `State` 带，因此乱序到达时可能短暂覆盖客户端插值。 |
+
+已修复异常关闭的成员锁残留及重载同步/异步结束计数交接；AI 回调溢出现在会提示玩家。真实未完成的重载仍暂停新战斗，不超时强制放行。详见审查报告顶部的后续修复记录。
 
 其它已声明的限制：
 
@@ -242,3 +238,5 @@ Copyright (C) 2026 Matuvent
 `TEMPLATE_LICENSE.txt` 是 NeoForge MDK 模板自带的 MIT 许可（版权方 NeoForged，仅适用于模板文件），
 与本模组许可证无关，其声明保持原样。
 `assets/mineturn/` 下若有引自其它项目的贴图或音效，其许可归原作者所有，不受本许可证覆盖。
+
+网络协议现为 **20**，客户端与服务端须同时更新。移动包使用递增序号，完整战斗状态同时同步移动状态，避免旧位置消息恢复已结束的移动。

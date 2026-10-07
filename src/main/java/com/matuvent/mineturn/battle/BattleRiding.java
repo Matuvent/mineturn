@@ -21,6 +21,7 @@ final class BattleRiding {
     static ServerPlayer rider(Entity mount){return RIDERS.get(mount.getUUID());}
     static boolean locked(Entity mount){return RIDERS.containsKey(mount.getUUID());}
     static void clear(){RIDERS.clear();}
+    static void forget(BattleSession.Member member){RIDERS.entrySet().removeIf(entry->entry.getValue()==member.entity);}
     static Vec3 seat(LivingEntity rider){var mount=vehicle(rider);return mount==null?Vec3.ZERO:rider.position().subtract(mount.position());}
     static AABB body(LivingEntity entity) {
         var mount=vehicle(entity);

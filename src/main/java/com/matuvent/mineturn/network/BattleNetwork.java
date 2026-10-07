@@ -24,7 +24,7 @@ public final class BattleNetwork {
     public static Consumer<ProjectileVisual> receiveProjectile=ignored->{};
     private BattleNetwork() {}
     public static void register(RegisterPayloadHandlersEvent event) {
-        var registrar = event.registrar("19");
+        var registrar = event.registrar("20");
         registrar.playToClient(ProjectileVisual.TYPE,ProjectileVisual.CODEC,(payload,context)->receiveProjectile.accept(payload));
         registrar.playToServer(AmmoUse.TYPE,AmmoUse.CODEC,(payload,context)->{
             if(context.player() instanceof ServerPlayer player) BattleManager.request(player,payload.request(),payload);
@@ -86,7 +86,7 @@ public final class BattleNetwork {
                         Vec3 anchor, Vec3 enemyPosition, float enemyHealth, float enemyMaxHealth,
                         boolean canMove, boolean canAct, boolean engaged, boolean canFlee, double movement,
                         String message, List<Slot> slots, List<Fighter> fighters, List<QueueEntry> queue,
-                        int mainActions,int bonusActions,int turnSeconds) implements CustomPacketPayload {
+                        int mainActions,int bonusActions,int turnSeconds,long motionSequence,boolean moving) implements CustomPacketPayload {
         public static final Type<State> TYPE = new Type<>(ResourceLocation.parse("mineturn:battle_state"));
         public static final StreamCodec<FriendlyByteBuf, State> CODEC = StreamCodec.of((buf, value) -> value.write(buf), State::read);
         public State { slots = List.copyOf(slots); fighters = List.copyOf(fighters); queue = List.copyOf(queue); }
@@ -96,7 +96,7 @@ public final class BattleNetwork {
                     vector(buf), vector(buf), buf.readFloat(), buf.readFloat(), buf.readBoolean(), buf.readBoolean(), buf.readBoolean(),
                     buf.readBoolean(), buf.readDouble(), buf.readUtf(1024), buf.readCollection(FriendlyByteBuf.limitValue(java.util.ArrayList::new, 10), Slot::read),
                     buf.readCollection(FriendlyByteBuf.limitValue(java.util.ArrayList::new, 32), Fighter::read),
-                    buf.readCollection(FriendlyByteBuf.limitValue(java.util.ArrayList::new, 32), QueueEntry::read),buf.readVarInt(),buf.readVarInt(),buf.readVarInt());
+                    buf.readCollection(FriendlyByteBuf.limitValue(java.util.ArrayList::new, 32), QueueEntry::read),buf.readVarInt(),buf.readVarInt(),buf.readVarInt(),buf.readVarLong(),buf.readBoolean());
         }
         void write(FriendlyByteBuf buf) {
             buf.writeUUID(battle); buf.writeVarLong(revision); buf.writeBoolean(active); buf.writeVarInt(enemyId); buf.writeVarInt(actorId); buf.writeDouble(time);
@@ -105,10 +105,10 @@ public final class BattleNetwork {
             buf.writeUtf(message, 1024); buf.writeCollection(slots, (out, slot) -> slot.write(out));
             buf.writeCollection(fighters, (out, fighter) -> fighter.write(out));
             buf.writeCollection(queue, (out, entry) -> entry.write(out));
-            buf.writeVarInt(mainActions);buf.writeVarInt(bonusActions);buf.writeVarInt(turnSeconds);
+            buf.writeVarInt(mainActions);buf.writeVarInt(bonusActions);buf.writeVarInt(turnSeconds);buf.writeVarLong(motionSequence);buf.writeBoolean(moving);
         }
         public static State closed(UUID id, long revision, String reason) {
-            return new State(id, revision, false, -1, -1, 0, Vec3.ZERO, Vec3.ZERO, 0, 0, false, false, false, false, 0, reason, List.of(), List.of(), List.of(),0,0,-1);
+            return new State(id, revision, false, -1, -1, 0, Vec3.ZERO, Vec3.ZERO, 0, 0, false, false, false, false, 0, reason, List.of(), List.of(), List.of(),0,0,-1,0,false);
         }
     }
     public record Request(UUID battle, long revision, String operation, int slot, String action, int target,
@@ -135,11 +135,11 @@ public final class BattleNetwork {
             buf.writeCollection(path, BattleNetwork::vector);
         }
     }
-    public record Motion(UUID battle, Vec3 position, boolean active) implements CustomPacketPayload {
+    public record Motion(UUID battle, long sequence, Vec3 position, boolean active) implements CustomPacketPayload {
         public static final Type<Motion> TYPE=new Type<>(ResourceLocation.parse("mineturn:motion"));
         public static final StreamCodec<FriendlyByteBuf,Motion> CODEC=StreamCodec.of((buf,value)->{
-            buf.writeUUID(value.battle); vector(buf,value.position); buf.writeBoolean(value.active);
-        },buf->new Motion(buf.readUUID(),vector(buf),buf.readBoolean()));
+            buf.writeUUID(value.battle);buf.writeVarLong(value.sequence); vector(buf,value.position); buf.writeBoolean(value.active);
+        },buf->new Motion(buf.readUUID(),buf.readVarLong(),vector(buf),buf.readBoolean()));
         @Override public Type<Motion> type(){return TYPE;}
     }
     public record Offer(String id,String name,String icon,boolean self,boolean allied,String unavailable,int mainCost,int bonusCost) {

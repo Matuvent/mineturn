@@ -181,13 +181,7 @@ multiplayer**. Current open issues, with exact locations:
 
 | Severity | Location | Issue |
 | --- | --- | --- |
-| **Critical** | `BattleManager.java:323`, `:186`, `:193`, `:38`, `:338` | The `close()` calls inside exception handlers are themselves unguarded, and `close()` can throw (via `drainCallbacks()` at `BattleSession.java:480`, or the safety-limit `IllegalStateException` at `BattleSession.java:1252`). A single cleanup failure can abort a server tick. |
-| **Major** | `BattleManager.java:33`, `:269` + `ServerReloadMixin.java:21` | If a `/reload` completion future never runs, the `reloads` counter never returns to zero and `damaged()` then **silently refuses to start any new battle forever**, with no log or player feedback. |
 | **Major** | `RangedShot.java:29-35`, `BattleManager.java:192` | The ranged hit window's `low`/`high` are fully deterministic, and the hit result depends only on the server-side timestamp of the incoming `AimSubmit`. A modified client can time the packet to hit every shot. |
-| Minor | `BattleSession.java:1233` | When the AI callback queue overflows, the whole queue is dropped with only a log line — no player-visible notice. |
-| Minor | `BattleSession.java:1303-1308` vs `:394` | `ai()` dereferences the state without the null guard that `hasAiActionBudget()` has. Currently unreachable, but only because data-pack validation is strict. |
-| Minor | `battle/BattleStatus.java:32` vs `:16` | `statusTicks` and `entity.tickCount` are two different clocks for the same conceptual thing. |
-| Minor | `network/BattleNetwork.java:138-143`, `client/BattleClient.java:69-72` | The `Motion` packet carries no revision while `State` does, so out-of-order delivery can briefly override client interpolation. |
 
 Additional stated limits:
 
@@ -264,3 +258,5 @@ Crediting the mod name and source is appreciated, but not required.
 applying only to the template files). It is unrelated to this mod's license and is left as-is.
 Any textures or sounds under `assets/mineturn/` taken from other projects remain under their authors' terms
 and are not covered by this license.
+
+Network protocol is now **20**. Update client and server together. Motion packets use monotonic sequence numbers; full battle snapshots also carry the current motion state to reject stale position updates. Cleanup/reload error recovery and callback-overflow notices have also been fixed; see the review follow-up record.
