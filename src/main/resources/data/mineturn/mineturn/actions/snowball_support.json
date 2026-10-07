@@ -1,0 +1,10 @@
+{
+  "name": "雪球牵制",
+  "effect": "mineturn:snowball_support",
+  "amount": 0,
+  "range": 16,
+  "cooldown_av": 100,
+  "parameters": {
+    "slow_ticks": 40
+  }
+}

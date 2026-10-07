@@ -1,0 +1,4 @@
+{
+  "items": ["minecraft:trident"],
+  "combat": {"enabled": true, "actions": ["mineturn:melee", "mineturn:throw_trident", "mineturn:riptide"], "melee_range": 2.5}
+}

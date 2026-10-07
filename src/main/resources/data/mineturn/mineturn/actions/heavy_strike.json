@@ -1,0 +1,6 @@
+{
+  "name": "重击",
+  "effect": "mineturn:mob_melee",
+  "range": 1.5,
+  "amount": 0
+}

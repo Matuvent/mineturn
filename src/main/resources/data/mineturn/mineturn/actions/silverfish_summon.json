@@ -1,0 +1,1 @@
+{"name":"唤醒虫群","effect":"mineturn:silverfish_summon","self":true,"range":1,"amount":0,"cooldown_av":200,"parameters":{"search_radius":4,"max_summons":3}}

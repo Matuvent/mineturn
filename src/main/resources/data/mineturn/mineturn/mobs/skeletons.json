@@ -1,0 +1,1 @@
+{"match":{"entities":["minecraft:skeleton","minecraft:stray","minecraft:bogged"]},"priority":-100,"template":"mineturn:animated_melee","ai":{"on_turn":"mineturn:ai/skeleton/turn","parameters":{"action":"mineturn:skeleton_shoot"}}}

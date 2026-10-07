@@ -1,0 +1,11 @@
+{
+  "entity": "minecraft:piglin_brute",
+  "priority": -100,
+  "template": "mineturn:animated_melee",
+  "agility": 90,
+  "ai": {
+    "parameters": {
+      "action": "mineturn:mob_melee"
+    }
+  }
+}

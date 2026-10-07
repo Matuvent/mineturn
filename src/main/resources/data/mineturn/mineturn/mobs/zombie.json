@@ -1,0 +1,20 @@
+{
+  "entity": "minecraft:zombie",
+  "agility": 100,
+  "reach": 1.5,
+  "initial_state": "chase",
+  "states": {
+    "chase": {
+      "behavior": "approach",
+      "transitions": [{"when": "in_reach", "to": "attack"}]
+    },
+    "attack": {
+      "behavior": "weighted_action",
+      "transitions": [{"when": "out_of_reach", "to": "chase"}],
+      "choices": [
+        {"action": "mineturn:claw", "weight": 70},
+        {"action": "mineturn:bite", "weight": 30}
+      ]
+    }
+  }
+}

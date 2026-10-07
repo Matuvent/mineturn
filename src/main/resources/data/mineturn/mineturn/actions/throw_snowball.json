@@ -1,0 +1,8 @@
+{
+  "name": "投掷雪球",
+  "effect": "mineturn:player_snowball",
+  "amount": 0,
+  "range": 16,
+  "consume": 1,
+  "ranged": {"duration_ms": 1200, "near_width": 0.4, "min_width": 0.06, "distance_factor": 0.14, "ammo_count": 0}
+}

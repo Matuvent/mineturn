@@ -1,0 +1,8 @@
+{
+  "action": "trap_example:device",
+  "name": "部署机关",
+  "icon": "minecraft:copper_block",
+  "equipment": {
+    "head": "minecraft:diamond_helmet"
+  }
+}

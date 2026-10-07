@@ -1,0 +1,1 @@
+{"items":["minecraft:shield"],"priority":-100,"combat":{"enabled":true,"actions":["mineturn:shield_guard"],"melee_range":1}}

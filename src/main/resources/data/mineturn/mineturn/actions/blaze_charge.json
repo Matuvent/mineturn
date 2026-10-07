@@ -1,0 +1,9 @@
+{
+  "name": "充能",
+  "effect": "mineturn:blaze_charge",
+  "range": 1,
+  "amount": 0,
+  "cooldown_av": 0,
+  "parameters": {},
+  "self": true
+}

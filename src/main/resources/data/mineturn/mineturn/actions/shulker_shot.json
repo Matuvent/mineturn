@@ -1,0 +1,9 @@
+{
+  "name": "潜影追踪弹",
+  "effect": "mineturn:shulker_shot",
+  "range": 16,
+  "amount": 0,
+  "cooldown_av": 100,
+  "parameters": {},
+  "self": false
+}

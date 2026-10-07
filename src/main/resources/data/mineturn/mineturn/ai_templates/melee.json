@@ -1,0 +1,9 @@
+{
+  "agility": 100,
+  "reach": 1.5,
+  "ai": {
+    "on_turn": "mineturn:ai/melee/turn",
+    "on_leave": "mineturn:ai/melee/cleanup",
+    "parameters": {"action": "mineturn:melee"}
+  }
+}

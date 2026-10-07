@@ -1,0 +1,4 @@
+{
+  "action":"grant_example:laser","name":"发射激光","icon":"minecraft:beacon","order":10,
+  "equipment":{"chest":"minecraft:golden_chestplate"}
+}

@@ -1,0 +1,12 @@
+{
+  "action": "field_example:hazard",
+  "name": "危险领域",
+  "icon": "minecraft:magma_block",
+  "equipment": {
+    "head": "minecraft:chainmail_helmet"
+  },
+  "cost": {
+    "resource": "mineturn:experience_levels",
+    "amount": 1
+  }
+}

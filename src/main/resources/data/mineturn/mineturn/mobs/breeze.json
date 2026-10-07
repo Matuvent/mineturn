@@ -1,0 +1,12 @@
+{
+  "entity": "minecraft:breeze",
+  "priority": -100,
+  "template": "mineturn:animated_melee",
+  "ai": {
+    "parameters": {
+      "action": "mineturn:breeze_burst",
+      "chase_distance": 8000
+    },
+    "on_turn": "mineturn:ai/ranged_hold/turn"
+  }
+}

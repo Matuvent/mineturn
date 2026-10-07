@@ -1,0 +1,9 @@
+{
+  "name": "激流冲刺",
+  "effect": "mineturn:riptide",
+  "amount": 0,
+  "range": 16,
+  "self": true,
+  "cooldown_av": 200,
+  "parameters": {"ground_target": true, "distance_multiplier": 4}
+}

@@ -1,0 +1,6 @@
+{
+  "name": "示例：原版武器攻击",
+  "effect": "mineturn:weapon_melee",
+  "amount": 4,
+  "range": 2.5
+}

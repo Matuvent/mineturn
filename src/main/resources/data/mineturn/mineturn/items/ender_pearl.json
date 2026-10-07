@@ -1,0 +1,4 @@
+{
+  "items": ["minecraft:ender_pearl"],
+  "combat": {"enabled": true, "actions": ["mineturn:ender_pearl"], "melee_range": 1}
+}

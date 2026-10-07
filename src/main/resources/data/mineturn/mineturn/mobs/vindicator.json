@@ -1,0 +1,1 @@
+{"entity":"minecraft:vindicator","priority":-100,"agility":160,"template":"mineturn:animated_melee","ai":{"parameters":{"action":"mineturn:vindicator_strike"}}}

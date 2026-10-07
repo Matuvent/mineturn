@@ -1,0 +1,10 @@
+{
+  "name": "修复铁傀儡",
+  "effect": "mineturn:golem_repair",
+  "amount": 0,
+  "range": 2.5,
+  "consume": 1,
+  "parameters": {
+    "target_side": "ally"
+  }
+}

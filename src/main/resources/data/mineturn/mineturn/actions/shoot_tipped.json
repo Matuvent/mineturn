@@ -1,0 +1,16 @@
+{
+  "name": "药箭射击",
+  "effect": "mineturn:projectile",
+  "amount": 6,
+  "range": 16,
+  "cooldown_av": 100,
+  "ranged": {
+    "duration_ms": 1200,
+    "near_width": 0.4,
+    "min_width": 0.06,
+    "distance_factor": 0.14,
+    "ammunition": "minecraft:tipped_arrow",
+    "ammo_count": 1
+  }
+}
+

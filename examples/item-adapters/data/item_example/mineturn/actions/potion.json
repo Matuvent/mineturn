@@ -1,0 +1,15 @@
+{
+  "name": "示例：投掷药水",
+  "effect": "mineturn:splash",
+  "amount": 0,
+  "range": 16,
+  "consume": 1,
+  "ranged": {
+    "duration_ms": 1200,
+    "near_width": 0.4,
+    "min_width": 0.06,
+    "distance_factor": 0.14,
+    "ammunition": "minecraft:splash_potion",
+    "ammo_count": 0
+  }
+}

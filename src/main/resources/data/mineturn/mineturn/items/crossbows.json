@@ -1,0 +1,1 @@
+{"items":["minecraft:crossbow"],"combat":{"enabled":true,"actions":["mineturn:shoot","mineturn:shoot_tipped","mineturn:shoot_spectral","mineturn:shoot_firework"],"melee_range":2.5}}

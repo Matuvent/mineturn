@@ -1,0 +1,12 @@
+{
+  "items": [
+    "minecraft:wind_charge"
+  ],
+  "combat": {
+    "enabled": true,
+    "actions": [
+      "mineturn:wind_burst"
+    ],
+    "melee_range": 1.5
+  }
+}

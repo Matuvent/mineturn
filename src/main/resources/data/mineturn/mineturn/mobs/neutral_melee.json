@@ -1,0 +1,1 @@
+{"match":{"entities":["minecraft:wolf","minecraft:polar_bear"]},"priority":-100,"template":"mineturn:animated_melee","ai":{"parameters":{"action":"mineturn:mob_melee"}}}

@@ -1,0 +1,4 @@
+{
+  "items": ["minecraft:apple", "minecraft:bread", "minecraft:cooked_beef", "minecraft:cooked_porkchop", "minecraft:baked_potato", "minecraft:carrot"],
+  "combat": {"enabled": true, "actions": ["mineturn:eat"], "melee_range": 1}
+}

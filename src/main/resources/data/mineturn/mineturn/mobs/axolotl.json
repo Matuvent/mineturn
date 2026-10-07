@@ -1,0 +1,11 @@
+{
+  "entity": "minecraft:axolotl",
+  "priority": -100,
+  "participation": "neutral",
+  "template": "mineturn:animated_melee",
+  "ai": {
+    "parameters": {
+      "action": "mineturn:mob_melee"
+    }
+  }
+}

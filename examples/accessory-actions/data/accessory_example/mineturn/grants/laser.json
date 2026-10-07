@@ -1,0 +1,13 @@
+{
+  "action": "accessory_example:laser",
+  "name": "能量激光",
+  "icon": "minecraft:beacon",
+  "order": 10,
+  "equipment": {
+    "chest": "minecraft:golden_chestplate"
+  },
+  "cost": {
+    "resource": "mineturn:experience_levels",
+    "amount": 2
+  }
+}

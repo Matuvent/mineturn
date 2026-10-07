@@ -1,0 +1,12 @@
+{
+  "action": "summon_example:husk",
+  "name": "召唤尸壳",
+  "icon": "minecraft:rotten_flesh",
+  "equipment": {
+    "head": "minecraft:golden_helmet"
+  },
+  "cost": {
+    "resource": "mineturn:experience_levels",
+    "amount": 1
+  }
+}

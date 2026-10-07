@@ -1,0 +1,16 @@
+{
+  "name": "向东闪现",
+  "effect": "mineturn:teleport_offset",
+  "amount": 0,
+  "range": 8,
+  "self": true,
+  "consume": 0,
+  "cooldown_av": 100,
+  "parameters": {
+    "dx": 3,
+    "dy": 0,
+    "dz": 0,
+    "require_sight": false,
+    "allow_water": false
+  }
+}

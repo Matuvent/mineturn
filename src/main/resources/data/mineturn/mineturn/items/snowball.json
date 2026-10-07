@@ -1,0 +1,4 @@
+{
+  "items": ["minecraft:snowball"],
+  "combat": {"enabled": true, "actions": ["mineturn:throw_snowball"], "melee_range": 1}
+}

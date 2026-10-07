@@ -1,0 +1,6 @@
+{
+  "name": "啃咬",
+  "effect": "mineturn:mob_melee",
+  "range": 1,
+  "amount": 0
+}

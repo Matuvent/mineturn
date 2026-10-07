@@ -1,0 +1,12 @@
+{
+  "items": [
+    "minecraft:armadillo_scute"
+  ],
+  "combat": {
+    "enabled": true,
+    "actions": [
+      "mineturn:wolf_armor_repair"
+    ],
+    "melee_range": 2.5
+  }
+}

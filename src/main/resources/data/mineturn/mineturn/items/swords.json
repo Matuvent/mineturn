@@ -1,0 +1,4 @@
+{
+  "items": ["minecraft:wooden_sword", "minecraft:stone_sword", "minecraft:iron_sword", "minecraft:golden_sword", "minecraft:diamond_sword", "minecraft:netherite_sword"],
+  "combat": {"enabled": true, "actions": ["mineturn:melee"], "melee_range": 2.5}
+}

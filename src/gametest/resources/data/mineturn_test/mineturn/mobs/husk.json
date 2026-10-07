@@ -1,0 +1,11 @@
+{
+  "schema_version": 2,
+  "entity": "minecraft:husk",
+  "ai": {
+    "on_enter": "mineturn_test:enter",
+    "on_turn": "mineturn_test:turn",
+    "on_action_resolved": "mineturn_test:resolved",
+    "on_leave": "mineturn_test:leave",
+    "parameters": {"mark": 7}
+  }
+}

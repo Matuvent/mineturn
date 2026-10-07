@@ -1,0 +1,4 @@
+{
+  "items": ["minecraft:chorus_fruit"],
+  "combat": {"enabled": true, "actions": ["mineturn:chorus_fruit"], "melee_range": 1}
+}

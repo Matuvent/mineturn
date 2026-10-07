@@ -1,0 +1,6 @@
+{
+  "name": "大口撕咬",
+  "effect": "mineturn:damage",
+  "amount": 6,
+  "range": 1.5
+}

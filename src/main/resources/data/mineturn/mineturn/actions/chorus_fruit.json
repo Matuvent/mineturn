@@ -1,0 +1,9 @@
+{
+  "name": "食用紫颂果",
+  "effect": "mineturn:chorus_fruit",
+  "amount": 0,
+  "range": 8,
+  "self": true,
+  "consume": 0,
+  "cooldown_av": 100
+}

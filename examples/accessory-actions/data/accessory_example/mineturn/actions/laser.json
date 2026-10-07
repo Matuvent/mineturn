@@ -1,0 +1,21 @@
+{
+  "name": "能量激光",
+  "effect": "mineturn:laser",
+  "amount": 6,
+  "range": 16,
+  "consume": 0,
+  "cooldown_av": 200,
+  "parameters": {
+    "action_cost": {
+      "main": 1,
+      "bonus": 0
+    }
+  },
+  "ranged": {
+    "duration_ms": 900,
+    "near_width": 0.28,
+    "min_width": 0.04,
+    "distance_factor": 0.2,
+    "ammo_count": 0
+  }
+}

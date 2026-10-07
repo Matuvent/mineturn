@@ -1,0 +1,1 @@
+{"entity":"minecraft:drowned","priority":-100,"template":"mineturn:animated_melee","ai":{"on_turn":"mineturn:ai/drowned/turn","parameters":{"action":"mineturn:drowned_trident"}}}

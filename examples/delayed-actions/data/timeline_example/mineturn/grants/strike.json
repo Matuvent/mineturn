@@ -1,0 +1,12 @@
+{
+  "action": "timeline_example:strike",
+  "name": "蓄力打击",
+  "icon": "minecraft:iron_helmet",
+  "equipment": {
+    "head": "minecraft:iron_helmet"
+  },
+  "cost": {
+    "resource": "mineturn:experience_levels",
+    "amount": 1
+  }
+}

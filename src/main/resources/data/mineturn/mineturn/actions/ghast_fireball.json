@@ -1,0 +1,9 @@
+{
+  "name": "爆炸火球",
+  "effect": "mineturn:ghast_fireball",
+  "range": 16,
+  "amount": 0,
+  "cooldown_av": 100,
+  "parameters": {},
+  "self": false
+}

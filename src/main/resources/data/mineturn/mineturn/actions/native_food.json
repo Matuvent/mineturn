@@ -1,0 +1,8 @@
+{
+  "name": "进食",
+  "effect": "mineturn:native_food",
+  "self": true,
+  "consume": 0,
+  "range": 1,
+  "amount": 0
+}

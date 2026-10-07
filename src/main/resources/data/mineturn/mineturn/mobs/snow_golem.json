@@ -1,0 +1,13 @@
+{
+  "entity": "minecraft:snow_golem",
+  "priority": -100,
+  "participation": "neutral",
+  "template": "mineturn:animated_melee",
+  "movement_mode": "ground",
+  "ai": {
+    "parameters": {
+      "action": "mineturn:snowball_support"
+    },
+    "on_turn": "mineturn:ai/snow_golem/turn"
+  }
+}

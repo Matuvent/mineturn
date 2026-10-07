@@ -1,0 +1,6 @@
+{
+  "name": "利爪挥舞",
+  "effect": "mineturn:damage",
+  "amount": 4,
+  "range": 1.5
+}

@@ -1,0 +1,11 @@
+{
+  "priority": -100,
+  "template": "mineturn:animated_melee",
+  "movement_mode": "swimming",
+  "ai": {
+    "parameters": {
+      "action": "mineturn:guardian_beam"
+    }
+  },
+  "entity": "minecraft:guardian"
+}

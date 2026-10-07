@@ -1,0 +1,1 @@
+{"extends":"mineturn:melee","agility":110,"reach":2,"ai":{"parameters":{"action":"batch_example:heavy_strike"}}}

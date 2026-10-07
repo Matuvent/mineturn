@@ -1,0 +1,12 @@
+{
+  "entity": "minecraft:bee",
+  "priority": -100,
+  "participation": "neutral",
+  "template": "mineturn:animated_melee",
+  "movement_mode": "flying",
+  "ai": {
+    "parameters": {
+      "action": "mineturn:bee_sting"
+    }
+  }
+}

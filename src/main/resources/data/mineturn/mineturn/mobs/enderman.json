@@ -1,0 +1,13 @@
+{
+  "entity": "minecraft:enderman",
+  "priority": -100,
+  "template": "mineturn:animated_melee",
+  "movement_mode": "ground",
+  "ai": {
+    "on_turn": "mineturn:ai/enderman/turn",
+    "on_move_finished": "mineturn:ai/realm/finish",
+    "parameters": {
+      "action": "mineturn:mob_melee"
+    }
+  }
+}

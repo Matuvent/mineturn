@@ -1,0 +1,16 @@
+{
+  "name": "震退",
+  "effect": "mineturn:repulse",
+  "amount": 0,
+  "range": 3,
+  "consume": 0,
+  "cooldown_av": 150,
+  "parameters": {
+    "distance": 3,
+    "rise": 0.5,
+    "action_cost": {
+      "main": 0,
+      "bonus": 1
+    }
+  }
+}

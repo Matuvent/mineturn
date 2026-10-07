@@ -1,0 +1,16 @@
+{
+  "name": "召唤尸壳",
+  "effect": "mineturn:summon",
+  "self": true,
+  "amount": 0,
+  "consume": 0,
+  "range": 8,
+  "cooldown_av": 150,
+  "parameters": {
+    "entity": "minecraft:husk",
+    "dx": 2,
+    "dy": 0,
+    "dz": 0,
+    "lifetime_av": 300
+  }
+}

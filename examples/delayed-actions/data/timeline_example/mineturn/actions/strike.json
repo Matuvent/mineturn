@@ -1,0 +1,15 @@
+{
+  "name": "蓄力打击",
+  "effect": "mineturn:delayed_strike",
+  "amount": 6,
+  "range": 8,
+  "consume": 0,
+  "cooldown_av": 150,
+  "parameters": {
+    "delay_av": 25,
+    "action_cost": {
+      "main": 1,
+      "bonus": 0
+    }
+  }
+}

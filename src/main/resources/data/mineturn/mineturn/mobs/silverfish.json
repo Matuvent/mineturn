@@ -1,0 +1,1 @@
+{"entity":"minecraft:silverfish","priority":-100,"template":"mineturn:animated_melee","reach":1,"ai":{"on_turn":"mineturn:ai/silverfish/turn","parameters":{"action":"mineturn:small_bite"}}}

@@ -1,0 +1,12 @@
+{
+  "items": [
+    "minecraft:stick"
+  ],
+  "combat": {
+    "enabled": true,
+    "actions": [
+      "teleport_example:blink_east"
+    ],
+    "melee_range": 1
+  }
+}

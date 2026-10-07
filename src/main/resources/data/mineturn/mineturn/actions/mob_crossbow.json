@@ -1,0 +1,1 @@
+{"name":"弩箭射击","effect":"mineturn:mob_crossbow","amount":0,"range":16,"cooldown_av":100,"ranged":{"duration_ms":1200,"near_width":0.4,"min_width":0.06,"distance_factor":0.14,"ammunition":"minecraft:arrow","ammo_count":0}}

@@ -1,0 +1,13 @@
+{
+  "action": "accessory_example:repulse",
+  "name": "震退",
+  "icon": "minecraft:wind_charge",
+  "order": 20,
+  "equipment": {
+    "feet": "minecraft:golden_boots"
+  },
+  "cost": {
+    "resource": "mineturn:experience_levels",
+    "amount": 1
+  }
+}

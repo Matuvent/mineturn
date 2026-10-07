@@ -1,0 +1,1 @@
+{"entity":"minecraft:vex","priority":-100,"template":"mineturn:animated_melee","movement_mode":"phasing","ai":{"parameters":{"action":"mineturn:mob_melee"}}}

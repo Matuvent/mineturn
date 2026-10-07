@@ -1,0 +1,9 @@
+{
+  "extends": "mineturn:melee",
+  "ai": {
+    "on_turn": "mineturn:ai/animated_melee/turn",
+    "on_move_finished": "mineturn:ai/animated_melee/finish",
+    "on_leave": "mineturn:ai/melee/cleanup",
+    "parameters": {"action": "mineturn:melee"}
+  }
+}

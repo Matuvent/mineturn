@@ -1,0 +1,14 @@
+{
+  "priority": 100,
+  "items": [
+    "minecraft:iron_sword",
+    "minecraft:stick"
+  ],
+  "combat": {
+    "enabled": true,
+    "actions": [
+      "item_example:weapon"
+    ],
+    "melee_range": 2.5
+  }
+}

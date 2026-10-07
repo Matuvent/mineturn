@@ -1,0 +1,13 @@
+{
+  "priority": 100,
+  "items": [
+    "minecraft:snowball"
+  ],
+  "combat": {
+    "enabled": true,
+    "actions": [
+      "item_example:projectile"
+    ],
+    "melee_range": 1
+  }
+}

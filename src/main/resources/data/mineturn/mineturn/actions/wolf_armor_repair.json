@@ -1,0 +1,10 @@
+{
+  "name": "修复狼铠",
+  "effect": "mineturn:wolf_armor_repair",
+  "amount": 0,
+  "range": 2.5,
+  "consume": 1,
+  "parameters": {
+    "target_side": "ally"
+  }
+}

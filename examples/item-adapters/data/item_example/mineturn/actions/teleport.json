@@ -1,0 +1,12 @@
+{
+  "name": "示例：末影珍珠",
+  "effect": "mineturn:ender_pearl",
+  "amount": 0,
+  "range": 16,
+  "self": true,
+  "consume": 1,
+  "cooldown_av": 100,
+  "parameters": {
+    "ground_target": true
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "火球连射",
+  "effect": "mineturn:blaze_volley",
+  "range": 16,
+  "amount": 0,
+  "cooldown_av": 200,
+  "parameters": {},
+  "self": false
+}

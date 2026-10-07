@@ -1,0 +1,6 @@
+{
+  "name": "近战攻击",
+  "effect": "mineturn:weapon_melee",
+  "amount": 4,
+  "range": 2.5
+}

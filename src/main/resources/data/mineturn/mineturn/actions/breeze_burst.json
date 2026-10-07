@@ -1,0 +1,10 @@
+{
+  "name": "风爆",
+  "effect": "mineturn:breeze_burst",
+  "amount": 1,
+  "range": 16,
+  "cooldown_av": 100,
+  "parameters": {
+    "push_distance": 3
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "action": "trap_example:trap",
+  "name": "布置陷阱",
+  "icon": "minecraft:tripwire_hook",
+  "equipment": {
+    "feet": "minecraft:iron_boots"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "进入陷阱",
+  "effect": "mineturn:hazard_field",
+  "self": true,
+  "amount": 4,
+  "range": 8,
+  "consume": 0,
+  "cooldown_av": 150,
+  "parameters": {
+    "dx": 2,
+    "dy": 0,
+    "dz": 0,
+    "radius": 1,
+    "height": 2,
+    "interval_av": 25,
+    "lifetime_av": 150,
+    "trigger": "enter",
+    "core_health": 0,
+    "charges": 1
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "required": true,
+  "package": "com.matuvent.mineturn.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "ServerPacketMixin",
+    "FoodMixin",
+    "ItemCooldownAccess",
+    "CooldownEndAccess",
+    "FoodClockAccess",
+    "SunlightAccess",
+    "ZombieSunAccess",
+    "LivingMixin",
+    "PlayerShieldMixin",
+    "PlayerEquipmentAccess",
+    "TerrainEnchantmentMixin",
+    "CommandsAccessor",
+    "ServerReloadMixin",
+    "FunctionLibraryMixin",
+    "StatusAccess",
+    "ArrowEffectsAccess",
+    "SkeletonArrowAccess",
+    "SlimeAttackAccess",
+    "SlimeSplitMixin",
+    "VexLifeAccess",
+    "BlazeBattleAccess",
+    "EnderBattleMixin",
+    "ShulkerBattleAccess",
+    "ShulkerBattleMixin",
+    "SmallFireballAccess",
+    "TridentHitAccess",
+    "ChannelingVisualMixin",
+    "GuardianBeamMixin",
+    "RavagerBattleMixin",
+    "CloudTargetsMixin",
+    "PotionBoundaryMixin",
+    "FluidAccess",
+    "StatusClockMixin",
+    "InfiniteEffectClockMixin",
+    "BeeLifeAccess",
+    "SnowballHitAccess",
+    "AxolotlAirAccess"
+  ],
+  "client": [
+    "BattleCameraMixin",
+    "BattleClientMovementMixin",
+    "BattleRendererMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

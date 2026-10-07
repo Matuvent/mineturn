@@ -1,0 +1,18 @@
+{
+  "name": "向地面投掷滞留药水",
+  "effect": "mineturn:lingering",
+  "amount": 0,
+  "range": 16,
+  "consume": 1,
+  "ranged": {
+    "duration_ms": 1200,
+    "near_width": 0.4,
+    "min_width": 0.06,
+    "distance_factor": 0.14,
+    "ammunition": "minecraft:lingering_potion",
+    "ammo_count": 0
+  },
+  "parameters": {
+    "ground_target": true
+  }
+}

@@ -1,0 +1,1 @@
+{"entity":"minecraft:blaze","template":"mineturn:flying_melee","ai":{"on_turn":"spatial_example:blaze"}}

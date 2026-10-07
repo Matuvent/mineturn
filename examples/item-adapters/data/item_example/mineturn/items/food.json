@@ -1,0 +1,13 @@
+{
+  "priority": 100,
+  "items": [
+    "minecraft:apple"
+  ],
+  "combat": {
+    "enabled": true,
+    "actions": [
+      "item_example:food"
+    ],
+    "melee_range": 1
+  }
+}

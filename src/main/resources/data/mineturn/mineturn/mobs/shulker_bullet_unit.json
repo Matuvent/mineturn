@@ -1,0 +1,7 @@
+{
+  "entity": "mineturn:shulker_bullet_unit",
+  "priority": -100,
+  "template": "mineturn:animated_melee",
+  "agility": 200,
+  "movement_mode": "flying"
+}

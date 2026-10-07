@@ -1,0 +1,7 @@
+{
+  "match":{"entities":["minecraft:endermite"]},
+  "priority":-100,
+  "template":"mineturn:animated_melee",
+  "reach":1,
+  "ai":{"parameters":{"action":"mineturn:small_bite"}}
+}

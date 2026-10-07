@@ -1,0 +1,15 @@
+{
+  "items": [
+    "minecraft:splash_potion"
+  ],
+  "combat": {
+    "enabled": true,
+    "actions": [
+      "mineturn:throw_splash",
+      "mineturn:throw_splash_ally",
+      "mineturn:throw_splash_ground",
+      "mineturn:splash_self"
+    ],
+    "melee_range": 1
+  }
+}

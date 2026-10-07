@@ -1,0 +1,1 @@
+{"entity":"minecraft:evoker","priority":-100,"template":"mineturn:animated_melee","ai":{"on_turn":"mineturn:ai/evoker/turn","parameters":{"action":"mineturn:fangs_line"}}}

@@ -1,0 +1,5 @@
+{
+  "match":{"entities":["minecraft:zombie_villager","minecraft:zombified_piglin"]},
+  "priority":-100,
+  "template":"mineturn:animated_melee", "ai":{"parameters":{"action":"mineturn:mob_melee"}}
+}

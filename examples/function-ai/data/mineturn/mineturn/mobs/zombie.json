@@ -1,0 +1,12 @@
+{
+  "schema_version": 2,
+  "entity": "minecraft:zombie",
+  "agility": 100,
+  "reach": 1.5,
+  "ai": {
+    "on_enter": "mineturn_example:zombie/init",
+    "on_turn": "mineturn_example:zombie/turn",
+    "on_leave": "mineturn_example:zombie/cleanup",
+    "parameters": {"claw_weight": 70}
+  }
+}

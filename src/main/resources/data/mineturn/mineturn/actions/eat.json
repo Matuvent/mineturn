@@ -1,0 +1,8 @@
+{
+  "name": "进食",
+  "effect": "mineturn:food",
+  "amount": 0,
+  "range": 1,
+  "self": true,
+  "consume": 1
+}

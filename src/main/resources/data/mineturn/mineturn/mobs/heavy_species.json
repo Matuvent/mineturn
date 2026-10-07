@@ -1,0 +1,1 @@
+{"match":{"entities":["minecraft:iron_golem","minecraft:hoglin","minecraft:ravager"]},"priority":-100,"template":"mineturn:animated_melee","ai":{"parameters":{"action":"mineturn:species_melee"}}}

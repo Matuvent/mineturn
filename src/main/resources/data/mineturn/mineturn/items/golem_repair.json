@@ -1,0 +1,12 @@
+{
+  "items": [
+    "minecraft:iron_ingot"
+  ],
+  "combat": {
+    "enabled": true,
+    "actions": [
+      "mineturn:golem_repair"
+    ],
+    "melee_range": 2.5
+  }
+}

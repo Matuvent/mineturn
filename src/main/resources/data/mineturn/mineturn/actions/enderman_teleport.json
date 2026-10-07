@@ -1,0 +1,12 @@
+{
+  "name": "瞬移",
+  "effect": "mineturn:enderman_teleport",
+  "range": 1,
+  "amount": 0,
+  "cooldown_av": 100,
+  "parameters": {
+    "teleport_range": 8,
+    "action_cost": "bonus"
+  },
+  "self": true
+}

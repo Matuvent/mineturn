@@ -1,0 +1,1 @@
+{"entity":"minecraft:witch","priority":-100,"template":"mineturn:animated_melee","ai":{"on_turn":"mineturn:ai/witch/turn","parameters":{"action":"mineturn:witch_harming"}}}

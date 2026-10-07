@@ -1,0 +1,1 @@
+{"match":{"entities":["minecraft:spider","minecraft:cave_spider"]},"priority":-100,"template":"mineturn:animated_melee","movement_mode":"climbing","ai":{"on_turn":"mineturn:ai/spider/turn","parameters":{"action":"mineturn:species_melee"}}}

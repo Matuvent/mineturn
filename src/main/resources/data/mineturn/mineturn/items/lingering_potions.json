@@ -1,0 +1,15 @@
+{
+  "items": [
+    "minecraft:lingering_potion"
+  ],
+  "combat": {
+    "enabled": true,
+    "actions": [
+      "mineturn:throw_lingering",
+      "mineturn:throw_lingering_ally",
+      "mineturn:throw_lingering_ground",
+      "mineturn:lingering_self"
+    ],
+    "melee_range": 1
+  }
+}

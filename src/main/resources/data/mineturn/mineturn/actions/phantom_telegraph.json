@@ -1,0 +1,7 @@
+{
+  "name": "锁定俯冲航线",
+  "effect": "mineturn:phantom_telegraph",
+  "amount": 0,
+  "range": 8,
+  "cooldown_av": 150
+}

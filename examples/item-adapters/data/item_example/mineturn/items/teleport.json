@@ -1,0 +1,13 @@
+{
+  "priority": 100,
+  "items": [
+    "minecraft:ender_pearl"
+  ],
+  "combat": {
+    "enabled": true,
+    "actions": [
+      "item_example:teleport"
+    ],
+    "melee_range": 1
+  }
+}
