@@ -26,6 +26,34 @@ import java.util.*;
 @GameTestHolder("mineturn")
 @PrefixGameTestTemplate(false)
 public final class BattleExtensionGameTests {
+    private static void burstNativeWater(GameTestHelper h,net.minecraft.world.entity.LivingEntity owner,net.minecraft.world.entity.LivingEntity target){
+        class WaterPotion extends net.minecraft.world.entity.projectile.ThrownPotion {
+            WaterPotion(){super(EntityType.POTION,h.getLevel());}
+            void burst(){super.onHit(new net.minecraft.world.phys.EntityHitResult(target));}
+        }
+        var potion=new WaterPotion();potion.setOwner(owner);potion.setPos(target.position());
+        potion.setItem(net.minecraft.world.item.alchemy.PotionContents.createItemStack(net.minecraft.world.item.Items.SPLASH_POTION,net.minecraft.world.item.alchemy.Potions.WATER));
+        potion.burst();
+    }
+    @GameTest(template="empty")
+    public static void nativeWaterRespectsTargetsAndOwnerBoundary(GameTestHelper h){
+        var player=player(h);var mob=h.spawnWithNoFreeWill(EntityType.PILLAGER,new BlockPos(7,1,4));
+        var battle=new BattleSession(player,mob,definitions("ground"),player);
+        var cow=h.spawnWithNoFreeWill(EntityType.COW,new BlockPos(7,1,5));
+        var axolotl=h.spawnWithNoFreeWill(EntityType.AXOLOTL,new BlockPos(7,1,6));
+        try{
+            BattleManager.authorized(()->mob.setRemainingFireTicks(200));cow.setRemainingFireTicks(200);axolotl.setAirSupply(100);
+            burstNativeWater(h,null,mob);
+            h.assertTrue(mob.getRemainingFireTicks()==200 && cow.getRemainingFireTicks()==0 && axolotl.getAirSupply()>100,"Unowned water lost participant or outsider filtering");
+            cow.setRemainingFireTicks(200);axolotl.setAirSupply(100);burstNativeWater(h,player,cow);
+            h.assertTrue(cow.getRemainingFireTicks()==200 && axolotl.getAirSupply()==100,"Combat owner's water affected outsiders");
+            battle.add(axolotl);BattleManager.authorized(()->axolotl.setAirSupply(100));
+            burstNativeWater(h,null,axolotl);
+            h.assertTrue(axolotl.getAirSupply()==100,"Water hydrated combat axolotl outside AV");
+            battle.close("test");burstNativeWater(h,player,mob);
+            h.assertTrue(mob.getRemainingFireTicks()==0 && axolotl.getAirSupply()>100,"Water failed to resume after battle exit");
+        }finally{battle.close("test");cleanup(player);mob.discard();cow.discard();axolotl.discard();}h.succeed();
+    }
     @GameTest(template="empty",batch="block_aura_boundaries")
     public static void beaconRefreshSkipsCombatAndResumesOnExit(GameTestHelper h){
         var player=player(h);var outside=player(h);outside.setPos(player.position().add(32,0,0));

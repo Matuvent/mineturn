@@ -63,6 +63,8 @@ public final class BattleClient {
         BattleNetwork.receiveState = BattleClient::receive;
         BattleNetwork.receiveProjectile=ProjectileAnimations::receive;
         BattleNetwork.receiveActionAnimation=ActionAnimations::receive;
+        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent event)->
+                event.registerReloadListener(new ActionAnimationData()));
         NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post event)->ProjectileAnimations.tick());
         NeoForge.EVENT_BUS.addListener(ProjectileAnimations::render);
         BattleNetwork.receiveOffers=packet->{

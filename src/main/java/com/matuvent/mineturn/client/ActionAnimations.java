@@ -15,17 +15,8 @@ import net.minecraft.world.phys.Vec3;
 public final class ActionAnimations {
     /** Fully resolved camera state: world position plus the look direction toward the aim point. */
     public record CameraPose(Vec3 position, float yaw, float pitch) {}
-    private static final ResourceLocation ID_EAT=ResourceLocation.parse("mineturn:eat");
-    private static final ResourceLocation ID_RANGED=ResourceLocation.parse("mineturn:ranged");
     private static final double BLEND_IN_MS=250;
     private static final double BLEND_OUT_MS=180;
-    /**
-     * Framing step per block of actor width: 1.6 keeps a normal 0.6-wide mob at the requested
-     * ~1-block offset while a 4-wide boss is framed about 6.4 blocks out.
-     */
-    private static final double FRAMING_MULTIPLIER=1.6;
-    /** Minimum distance from the aim point, so the camera never ends up inside the target. */
-    private static final double SAFE_CLEARANCE=1.6;
 
     private static Playback playback;
     private static CameraPose blendOutFrom;
@@ -79,35 +70,32 @@ public final class ActionAnimations {
 
     /**
      * Place the camera beside and slightly in front of the actor, looking at the aim point. The offsets
-     * are expressed in the actor's own facing so the framing reads the same regardless of world yaw,
-     * and they scale with the actor's collision box so large mobs do not swallow the frame.
+     * come from {@link ActionAnimationData} (resource-pack tunable), are expressed in the actor's own
+     * facing so the framing reads the same regardless of world yaw, and grow with the actor's collision
+     * box so large mobs do not swallow the frame.
      */
     private static CameraPose computeHold(net.minecraft.client.multiplayer.ClientLevel level,ResourceLocation id,LivingEntity actor,LivingEntity aim){
         double yaw=Math.toRadians(actor.getYRot());
         Vec3 forward=new Vec3(-Math.sin(yaw),0,Math.cos(yaw));
         Vec3 right=new Vec3(Math.cos(yaw),0,-Math.sin(yaw));
-        var key=id.toString();
-        boolean eating=key.equals(ID_EAT.toString());
-        double sideRatio=key.equals(ID_RANGED.toString())?0.9:1.0;
-        double frontRatio=eating?0.6:1.0;
-        // Collision-box driven framing: a 4-wide boss pushes the camera several blocks out and back.
-        double scale=Math.max(1.0,actor.getBbWidth()*FRAMING_MULTIPLIER);
-        double side=scale*sideRatio, front=scale*frontRatio;
-        double lift=Math.max(0.25,actor.getBbHeight()*0.2);
+        var rule=ActionAnimationData.camera(id);
+        double bbWidth=actor.getBbWidth();
+        double scale=rule.scaleFor(bbWidth);
+        double side=rule.side()+scale, front=rule.front()+scale;
+        double lift=rule.lift()+actor.getBbHeight()*0.05;
         Vec3 base=actor.position().add(0,actor.getEyeHeight()*0.7,0);
         Vec3 eye=aim.getEyePosition();
         Vec3 wanted=base.add(forward.scale(front)).add(right.scale(side)).add(0,lift,0);
         // First keep the frame clear of the target, then clamp it out of any wall on the sight line.
-        Vec3 spaced=setBack(wanted,eye,scale);
+        Vec3 spaced=setBack(wanted,eye,rule.minDistance());
         Vec3 position=clearSight(level,spaced,eye,actor);
         return poseLookAt(position,eye);
     }
 
     /** Back the camera off along the sight line if the framing step placed it too close to the aim point. */
-    private static Vec3 setBack(Vec3 position,Vec3 eye,double scale){
+    private static Vec3 setBack(Vec3 position,Vec3 eye,double minimum){
         Vec3 away=position.subtract(eye);
         double gap=away.length();
-        double minimum=Math.max(SAFE_CLEARANCE,scale*0.5);
         if(gap>=minimum || gap<1e-6)return position;
         return eye.add(away.scale(minimum/gap));
     }

@@ -297,22 +297,48 @@ if (pose != null) { setPosition(pose.position()); setRotation(pose.yaw(), pose.p
 - `network/BattleNetwork.java`：新增 `ActionAnimation` payload（battle/sequence/animationId/actorId/targetId/impact/hasImpact）+ `idFor(effect)` 映射；协议 **20 → 21**
 - `battle/BattleSession.java`：新增 `actionSequence` 与 `broadcastActionAnimation`，在 `runEffect` 结算后向本场所有玩家广播
 - `client/ActionAnimations.java`：单演出播放器。按行动者自身朝向算出**固定机位**（正前方 + 右方偏移），锁定看向目标；推入 250ms → 保持 → 释放 180ms；机位落入方块时沿视线夹取；按 battleId 去重、换世界清理
+- `client/ActionAnimationData.java`：**数据包可配的机位规则**，从 `assets/<ns>/mineturn/animation_camera.json` 加载，客户端资源重载（含 `/reload`）即刷新；解析失败记日志并回落内置默认
 - `mixin/BattleCameraMixin.java`：回填当前真实机位 + 优先采用演出的绝对坐标与朝向
-- `client/BattleClient.java`：接线 `receiveActionAnimation` + 战斗退出时 `clear()`
+- `client/BattleClient.java`：接线 `receiveActionAnimation` + 注册资源重载监听器 + 战斗退出时 `clear()`
 - 测试：`ActionAnimation` 编解码往返 + `idFor` 映射断言；全量 **297/297 通过**
 
-**机位定义**（按用户要求，参照崩铁技能机位）：
+**机位定义**（按用户要求，参照崩铁技能机位，**数值可在数据包中调整**）：
 
-| 动作 | 机位（前方 / 右方） | 看向 |
+配置文件：`assets/<命名空间>/mineturn/animation_camera.json`（**客户端资源包**，`/reload` 生效）
+
+```jsonc
+{
+  "camera": {                       // 默认规则：未单独配置的动作都用它
+    "side": 0.85, "front": 0.85, "lift": 0.45,
+    "width_base": 1.15, "width_scale": 0.9, "min_distance": 2.2
+  },
+  "actions": {                      // 按动画 id 覆盖（可用裸名字 "eat" 或完整 "mineturn:eat"）
+    "melee":  { "side": 0.95, "front": 0.9, "min_distance": 2.4 },
+    "ranged": { "side": 0.7,  "front": 0.9, "min_distance": 2.6 },
+    "eat":    { "side": 0.6,  "front": 0.4, "min_distance": 1.7 }
+  }
+}
+```
+
+| 字段 | 含义 |
+| --- | --- |
+| `side` / `front` | 右方 / 正前方的**绝对格数**，叠加在碰撞箱项之上 |
+| `lift` | 镜头抬升 |
+| `width_base` / `width_scale` | 碰撞箱项：`width_base + 碰撞箱宽度 × width_scale` |
+| `min_distance` | 到瞄准点的最小距离（沿视线方向），防止镜头插进目标体内 |
+
+**最终偏移 = `side` + `width_base` + `碰撞箱宽度 × width_scale`**（`front` 同理）。
+因此配置数值描述的是"普通体型生物"的观感，宽体生物自动被推远。
+当前默认值下的实际效果：
+
+| 实体 | 宽度 | melee 右方偏移 |
 | --- | --- | --- |
-| `eat` | 0.6 格 / 1.0 格 | 行动者自身面部 |
-| `melee`（含 `generic` 兜底） | 1.0 格 / 1.0 格 | 被攻击者 |
-| `ranged` | 1.0 格 / 0.9 格 | 被攻击者 |
+| 玩家 / 僵尸 | 0.6 | ≈ 2.5 格 |
+| 铁傀儡 | 1.4 | ≈ 3.5 格 |
+| 劫掠兽 | 1.95 | ≈ 4.0 格 |
+| 4 格宽 Boss | 4.0 | ≈ 6.2 格 |
 
-**偏移量随实体碰撞箱自动缩放**：`scale = max(1.0, 碰撞箱宽度 × 1.6)`，到目标的距离另有
-下限 `max(1.6, scale × 0.5)`；镜头抬升也按实体高度取 `max(0.25, 高度 × 0.2)`。
-效果举例：普通 0.6 宽的僵尸保持约 1 格偏移，4 格宽的 Boss 会被推到约 6.4 格外，
-避免镜头插进模型体内。若机位落到方块中，最后再沿视线夹取到遮挡前。
+若机位落到方块中，最后再沿视线夹取到遮挡前。文件损坏时记录错误并回落到内置默认，不会崩客户端。
 
 **尚未实现（P1+）**：行动者姿态/粒子、数据包 JSON 引用、Java API、优先级抢占、震屏慢动作。
 "每个动作都有动画"当前 = 每个动作都有一段**固定机位技能镜头**（`generic` 兜底），暂无姿态动画。
