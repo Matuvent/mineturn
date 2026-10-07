@@ -510,22 +510,57 @@ for (int shot = 0; shot < 40; shot++)
 
 ---
 
-## 11. 文档与代码不一致
+## 11. 文档与代码不一致（**已于 2026-10-07 修正**）
 
 **可信度：[已证实]** ｜ 严重度：Minor（但**持续迭代的项目里这点很贵**）
 
-`docs/PROTOTYPE.md` 与当前代码脱节，会让后续接手的人（和下一个 AI 会话）基于错误前提做决策：
+`docs/PROTOTYPE.md` 曾与当前代码脱节，会让接手的人（和下一个 AI 会话）基于错误前提做决策。
+本条已于 2026-10-07 全部处理，记录如下：
 
-| 位置 | 文档写法 | 实际 |
-| --- | --- | --- |
-| `PROTOTYPE.md:133` | "远程动作与判定小游戏尚未实现" | `RangedShot` + `RANGED_COMBAT.md` 已完整实现 |
-| `PROTOTYPE.md:143` | "没有…远程判定" | 同上 |
-| `PROTOTYPE.md:154` | "28 项 GameTest" | **287 项**（另有 `BattleExtensionGameTests` 未在本文提及） |
-| `PROTOTYPE.md:78` | "当前不提供标签批量匹配" | `MobDefinitions.match()` 已支持 `entity_tags` |
-| `PROTOTYPE.md:38` | "玩家操作有约 30 秒期限" | 见第 4 节：移动会重置期限 |
-| `PROTOTYPE.md:100` | "跨战斗冷却持久化尚未实现" | 需确认是否仍准确 |
+| 位置（修正前） | 原写法 | 实际 | 处理 |
+| --- | --- | --- | --- |
+| `PROTOTYPE.md:133` | "远程动作与判定小游戏尚未实现" | `RangedShot` + `RANGED_COMBAT.md` 已完整实现 | ✅ 已改为指向远程判定说明 |
+| `PROTOTYPE.md:143` | "没有 PvP、自定义阵营、战斗合并或远程判定" | 远程判定已实现；PvP 只是"无自定义阵营配置" | ✅ 已改写 |
+| `PROTOTYPE.md:154` | "28 项 GameTest" | 289 个声明，287 项通过 | ✅ 已重写并扩充覆盖范围分类 |
+| `PROTOTYPE.md:78` | "当前不提供标签批量匹配" | `MobDefinitions.match()` 支持 `entity_tags` / `namespaces` / `exclude` 与模板继承 | ✅ 已改为指向批量 AI 说明 |
+| `PROTOTYPE.md:145` | "战斗中的药水计时暂时冻结，未转换为行动值" | 药水/燃烧/氧气/饥饿已换算到 AV 时钟 | ✅ 已改为指向 AV 状态时间轴 |
+| `PROTOTYPE.md:100` | "跨战斗冷却持久化尚未实现" | **确认仍准确**：`Member.cooldowns` 只在会话内存中 | ✅ 措辞收紧为"跨战斗与跨重启不持久化" |
 
-建议：把 `PROTOTYPE.md` 里"边界/未实现"一节整体过一遍，或改为指向各专项文档。
+另外处理：
+
+- `TASKS.md` 顶部新增「当前状态」汇总表（版本基线、协议版本、测试数、内容规模、许可证），
+  并明确标注下文各批次的"最新完整验证：N 项"属于**历史记录**、数字随时间线递增，不代表当前数量。
+  该文件此前没有任何整体状态入口，容易被误读为"测试只有 264 项"。
+
+**唯一刻意保留未改的一项**：`PROTOTYPE.md:38` 的"玩家操作有约 30 秒期限"。
+这条对应的是第 4 节的**实际行为缺陷**（移动会重置期限），不是纯文档错误；
+在决定"期限是否应该被移动重置"之前不应改文档，否则会把实现问题写成预期行为。
+
+---
+
+## 12. CI 只构建、不跑集成测试
+
+**可信度：[已证实]** ｜ 严重度：中（工程改进）
+
+`.github/workflows/build.yml:29-30` 只执行 `./gradlew build`：
+
+```yaml
+      - name: Build with Gradle
+        run: ./gradlew build
+```
+
+`build` 不会运行 `runGameTestServer`，因此 **CI 绿灯不代表 287 项集成测试通过**。
+本项目的功能正确性几乎全部由那些测试保障，只做编译检查收益有限。
+
+建议追加一个步骤（差别只有最后一行）：
+
+```yaml
+      - name: Run server integration tests
+        run: ./gradlew runGameTestServer
+```
+
+`build.gradle` 已配置好 `gameTestServer` run 与 `neoforge.enabledGameTestNamespaces`，
+GameTest 世界位于隔离的 `run-gametest/`（已加入 `.gitignore`），可直接在 CI 上运行，耗时约 2 分钟。
 
 ---
 
@@ -563,6 +598,8 @@ for (int shot = 0; shot < 40; shot++)
 | 3 | 第 9 条测试有效性 + 9.3 测试隔离 | 先让测试可信，后续改动才有保障 |
 | 4 | 第 8 条客户端测试 | 当前最大的验证盲区 |
 | 5 | 第 4、7 条 | **需要你先定设计**，不要直接改代码 |
-| 6 | 第 5、6、10、11 条 | 一致性/健壮性，可批量处理 |
+| 6 | 第 5、6、10 条 | 一致性/健壮性，可批量处理 |
+| — | 第 11 条 | ✅ 已于 2026-10-07 完成（文档修正） |
+| — | 第 12 条 | 工程改进：CI 加跑集成测试（见该节 YAML 片段） |
 
 **每次改动后**：`gradlew.bat compileJava` → `gradlew.bat runGameTestServer`，确认 287/287 不退化。
