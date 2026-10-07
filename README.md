@@ -181,7 +181,7 @@ multiplayer**. Current open issues, with exact locations:
 
 | Severity | Location | Issue |
 | --- | --- | --- |
-| **Major** | `RangedShot.java:29-35`, `BattleManager.java:192` | The ranged hit window's `low`/`high` are fully deterministic, and the hit result depends only on the server-side timestamp of the incoming `AimSubmit`. A modified client can time the packet to hit every shot. |
+| (no open Major items) | — | The ranged window is now server-randomized (both its position on the bar and the pre-press lead-in are chosen by the server, and the client only reacts), so the hit no longer depends on the client's packet timing. |
 
 Additional stated limits:
 

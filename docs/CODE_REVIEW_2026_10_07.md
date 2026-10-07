@@ -30,8 +30,8 @@
 | 第 10.3 条 Motion 缺版本 | ✅ **已修复（方案优于原建议）** | 新增 `MotionOrder` 独立单调序号（而非复用 revision，因为同一 revision 内可有多个位置包），`State` 同时携带序号与 moving 标记；协议升为 **20**。回归测试 `motionSequenceRejectsStalePositionsAndSnapshotRestarts`、`movementSnapshotsCarrySequenceAndStopState` |
 | 第 12 条 CI 不跑集成测试 | ✅ **已修复** | 新增 `gametest` job（见第 12 节），已在 GitHub Actions 实测通过 |
 | 第 4 条 操作期限 | ✅ **已确认非缺陷** | 移动重置是刻意设计，已改文档（见第 4 节） |
-| 第 7 条 远程判定客户端信任 | ⚠️ **未修（现状）** | 仍为设计边界，`RangedShot` 未改动。原建议的"服务端出题"方案未被采纳 |
-| 第 8 条 客户端零覆盖 | ⚠️ **未修（现状）** | 仍无客户端自动化测试；本次新增测试全部为服务端 GameTest |
+| 第 7 条 远程判定客户端信任 | ✅ **已修复（2026-10-07 后续）** | `RangedShot` 构造时用服务端随机源决定窗口位置（条中部 25%–75%）并随机化按下前的引导时长；客户端只渲染下发的 `low`/`high` 并作答，无法预知按下时刻。协议不变（窗口边界本就在 Aim 包里）。回归测试 `rangedWindowPositionIsServerRandomized` |
+| 第 8 条 客户端零覆盖 | ⏸️ **暂缓（按用户决定）** | 先不加客户端 GameTest；维持本地手动验证 |
 | 第 11 条 文档过时 | ✅ **已修复** | 见第 11 节（本审查方处理） |
 
 **审查方自纠**：原始报告中"守卫者光束零伤害"的怀疑（见第 10.5 条附近的讨论）**已撤回**。
@@ -41,8 +41,24 @@
 
 **仍未修复的实质项（按优先级）**：
 
-1. **第 7 条** —— 远程判定命中窗口的客户端信任问题（防作弊多人服的唯一硬伤）
-2. **第 8 条** —— 客户端侧零自动化覆盖（镜头、插值平滑、GUI 状态链）
+1. ~~第 7 条~~ —— ✅ 已修（服务端随机窗口，见上表）
+2. **第 8 条** —— 客户端侧零自动化覆盖（按用户决定暂缓，维持本地手动验证）
+
+### 新增混入审查（Astra 本轮新增，原清单外）
+
+`StatusClockMixin` 的两个 `@Redirect` 与 `AuraBoundaryMixin`（含两个 `@Invoker`）经逐行复核：
+
+- **`StatusClockMixin.mineturn$fluidPush`**：返回 `false` 跳过 `isPushedByFluid` 的推动，但**保留**
+  `updateFluidHeightAndDoFluidPushing` 前半段的流体高度/接触缓存更新 —— 设计正确，与
+  `fluidFlowFreezesButContactCachesUpdate` 测试一致。
+- **`StatusClockMixin.mineturn$bubblePush`**：`onInsideBubbleColumn` 场景下跳过 `setDeltaMovement`
+  但**不跳过**方法其余逻辑（含 fall distance 复位），注释与实现吻合。
+- **`AuraBoundaryMixin`**：`@Mixin({BeaconBlockEntity.class, ConduitBlockEntity.class})` 上的 `@Redirect`
+  作用于 `applyEffects` 内的 `Player.addEffect` 调用，签名（`static` 接收 `Player, MobEffectInstance`）
+  正确；`BeaconAuraAccess` / `ConduitAuraAccess` 用 `static` `@Invoker` 对应两个静态 `applyEffects`，正确。
+- 三者均已注册进 `mineturn.mixins.json`（43/43 对应），有 `beaconRefresh…` / `conduitRefresh…` 等回归测试。
+
+结论：**新增混入未发现问题**。
 
 ### 修复方记录
 

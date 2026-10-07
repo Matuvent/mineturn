@@ -960,7 +960,7 @@ public final class BattleExtensionGameTests {
             advanceShieldTestClock(battle,100);BattleItemCooldowns.clock(battle,battle.member(player));
             for(int y=1;y<4;y++)h.setBlock(9,y,2,Blocks.STONE);
             battle.use(player,0,"mineturn:wind_burst",mob.getId());var hit=battle.shot;
-            battle.submitShot(player,hit.token,hit.startNanos+(long)hit.action.ranged().durationMs()*500_000L);
+            battle.submitShot(player,hit.token,hit.windowCentreNanos());
             h.assertTrue(mob.getX()>start.x && mob.getX()<h.absolutePos(new BlockPos(9,1,2)).getX() && mob.getHealth()<mob.getMaxHealth(),"Wind burst failed displacement or crossed wall");
             h.assertTrue(outside.position().equals(safe) && battle.budget.remaining()==movement && player.getInventory().getItem(0).getCount()==1,"Wind burst affected outsider or charged movement/item twice");
         }finally{battle.close("test");cleanup(player);mob.discard();outside.discard();}h.succeed();
@@ -2116,7 +2116,7 @@ public final class BattleExtensionGameTests {
             }finally{buffer.release();}
             battle.useGrant(player,id,mob.getId());var shot=battle.shot;float health=mob.getHealth();
             h.assertTrue(!battle.budget.canAct() && shot!=null && !battle.ready(player,"grant_example:laser"),"Grant failed to reserve action/cooldown");
-            battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            battle.submitShot(player,shot.token,shot.windowCentreNanos());
             h.assertTrue(mob.getHealth()<health && battle.shot==null,"Successful granted laser did not hit");
             float after=mob.getHealth();battle.submitShot(player,shot.token,shot.startNanos);
             h.assertTrue(mob.getHealth()==after,"Repeated granted token hit again");
@@ -2135,7 +2135,7 @@ public final class BattleExtensionGameTests {
             player.setItemSlot(net.minecraft.world.entity.EquipmentSlot.CHEST,new ItemStack(net.minecraft.world.item.Items.GOLDEN_CHESTPLATE));
             battle.useGrant(player,"grant_example:chestplate_laser",mob.getId());var shot=battle.shot;float health=mob.getHealth();
             player.setItemSlot(net.minecraft.world.entity.EquipmentSlot.CHEST,ItemStack.EMPTY);
-            battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            battle.submitShot(player,shot.token,shot.windowCentreNanos());
             h.assertTrue(mob.getHealth()==health && battle.shot==null && !battle.budget.canAct() && !battle.ready(player,"grant_example:laser"),"Revoked grant hit or refunded reservation");
         }finally{battle.close("test");cleanup(player);mob.discard();}h.succeed();
     }
@@ -2693,12 +2693,12 @@ public final class BattleExtensionGameTests {
             h.assertTrue(shot!=null && !battle.budget.canAct() && player.getInventory().getItem(10).getCount()==2,"Shot not prepaid");
             h.assertTrue(!battle.ready(player,"mineturn:shoot") && player.getInventory().getItem(0).getDamageValue()==1,"Shot cooldown/durability not paid");
             try{battle.action(player,"end",0,"",0,0,0);throw new AssertionError("Ended turn during aim");}catch(IllegalArgumentException expected){}
-            battle.submitShot(player,UUID.randomUUID(),shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            battle.submitShot(player,UUID.randomUUID(),shot.windowCentreNanos());
             h.assertTrue(battle.shot==shot,"Forged token consumed valid attempt");
             float health=mob.getHealth();
-            battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            battle.submitShot(player,shot.token,shot.windowCentreNanos());
             h.assertTrue(battle.shot==null && mob.getHealth()==health-6,"Ranged hit failed outside melee range");
-            battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            battle.submitShot(player,shot.token,shot.windowCentreNanos());
             h.assertTrue(mob.getHealth()==health-6 && player.getInventory().getItem(10).getCount()==2,"Replayed shot applied twice");
         }finally{battle.close("test");cleanup(player);mob.discard();}
         h.succeed();
@@ -3101,11 +3101,11 @@ public final class BattleExtensionGameTests {
         try {
             var before=mob.position();battle.use(player,0,"mineturn:shoot",mob.getId());var attempt=battle.shot;
             h.assertTrue(bow.isEmpty() && player.getInventory().getItem(10).getCount()==1,"Infinity consumed arrow or weapon did not break");
-            battle.submitShot(player,attempt.token,attempt.startNanos+(long)attempt.action.ranged().durationMs()*500_000L);
+            battle.submitShot(player,attempt.token,attempt.windowCentreNanos());
             h.assertTrue(mob.getHealth()==10,"Power V lost from broken weapon snapshot: health="+mob.getHealth());
             h.assertTrue(mob.getRemainingFireTicks()==100,"Flame did not ignite for 500 AV");
             h.assertTrue(mob.position().equals(before) && mob.getDeltaMovement().lengthSqr()==0,"Punch caused knockback");
-            float health=mob.getHealth();battle.submitShot(player,attempt.token,attempt.startNanos+(long)attempt.action.ranged().durationMs()*500_000L);
+            float health=mob.getHealth();battle.submitShot(player,attempt.token,attempt.windowCentreNanos());
             h.assertTrue(mob.getHealth()==health,"Enchanted shot replayed");
         }finally{battle.close("test");cleanup(player);mob.discard();}
         h.succeed();
@@ -3145,7 +3145,7 @@ public final class BattleExtensionGameTests {
         var battle=new BattleSession(player,main,definitions("ground"),player);battle.add(left);battle.add(right);
         try {
             battle.use(player,0,"mineturn:shoot",main.getId());var shot=battle.shot;
-            battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            battle.submitShot(player,shot.token,shot.windowCentreNanos());
             h.assertTrue(main.getHealth()==18 && left.getHealth()==18 && right.getHealth()==18,"Multishot lanes missed or stacked hits");
             h.assertTrue(outsider.getHealth()==24 && player.getInventory().getItem(10).getCount()==1 && bow.getDamageValue()==3 && !battle.budget.canAct(),"Multishot collateral or costs incorrect");
             battle.budget=new TurnBudget(4);battle.member(player).cooldowns.clear();
@@ -3167,11 +3167,11 @@ public final class BattleExtensionGameTests {
         var battle=new BattleSession(player,main,definitions("ground"),player);battle.add(far);battle.add(near);
         try {
             battle.use(player,0,"mineturn:shoot",main.getId());var shot=battle.shot;
-            battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            battle.submitShot(player,shot.token,shot.windowCentreNanos());
             h.assertTrue(main.getHealth()==18 && near.getHealth()==18 && far.getHealth()==24,"Piercing did not respect distance order or level limit");
             h.setBlock(9,1,2,Blocks.STONE);h.setBlock(9,2,2,Blocks.STONE);bow.enchant(piercing,4);
             battle.budget=new TurnBudget(4);battle.member(player).cooldowns.clear();
-            battle.use(player,0,"mineturn:shoot",main.getId());shot=battle.shot;battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            battle.use(player,0,"mineturn:shoot",main.getId());shot=battle.shot;battle.submitShot(player,shot.token,shot.windowCentreNanos());
             h.assertTrue(main.getHealth()==12 && near.getHealth()==12 && far.getHealth()==24,"Piercing passed through solid wall");
             h.assertTrue(near.getDeltaMovement().lengthSqr()==0,"Piercing generated knockback");
         }finally{battle.close("test");cleanup(player);main.discard();near.discard();far.discard();}
@@ -3212,7 +3212,7 @@ public final class BattleExtensionGameTests {
             h.assertTrue(ammo.isEmpty(),"Infinity preserved tipped arrow");
             h.assertTrue(!battle.ready(player,"mineturn:shoot") && !battle.ready(player,"mineturn:shoot_spectral"),"Ammo switching bypassed cooldown");
             player.getInventory().setItem(10,new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.SPECTRAL_ARROW));
-            battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            battle.submitShot(player,shot.token,shot.windowCentreNanos());
             var poison=mob.getEffect(net.minecraft.world.effect.MobEffects.POISON);
             int expected=net.minecraft.world.item.alchemy.Potions.POISON.value().getEffects().getFirst().getDuration()/8;
             h.assertTrue(poison!=null && poison.getDuration()==expected && mob.getHealth()==18,"Tipped arrow lost potion snapshot or native duration scaling");
@@ -3237,7 +3237,7 @@ public final class BattleExtensionGameTests {
             h.assertTrue(!main.hasEffect(net.minecraft.world.effect.MobEffects.GLOWING) && !next.hasEffect(net.minecraft.world.effect.MobEffects.GLOWING),"Miss applied spectral effect");
             battle.budget=new TurnBudget(4);battle.member(player).cooldowns.clear();
             battle.use(player,0,"mineturn:shoot_spectral",main.getId());shot=battle.shot;
-            battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            battle.submitShot(player,shot.token,shot.windowCentreNanos());
             h.assertTrue(main.getEffect(net.minecraft.world.effect.MobEffects.GLOWING).getDuration()==200
                     && next.getEffect(net.minecraft.world.effect.MobEffects.GLOWING).getDuration()==200,"Spectral piercing did not apply native glow");
             h.assertTrue(player.getInventory().getItem(10).isEmpty(),"Special arrows were not prepaid exactly once");
@@ -3258,7 +3258,7 @@ public final class BattleExtensionGameTests {
             battle.use(player,0,"mineturn:throw_splash",main.getId());var shot=battle.shot;
             h.assertTrue(splash.getCount()==1 && !battle.budget.canAct(),"Throw did not prepay selected potion");
             splash.set(net.minecraft.core.component.DataComponents.POTION_CONTENTS,new net.minecraft.world.item.alchemy.PotionContents(net.minecraft.world.item.alchemy.Potions.WATER));
-            battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            battle.submitShot(player,shot.token,shot.windowCentreNanos());
             int duration=net.minecraft.world.item.alchemy.Potions.POISON.value().getEffects().getFirst().getDuration();
             h.assertTrue(main.getEffect(net.minecraft.world.effect.MobEffects.POISON).getDuration()==duration
                     && near.getEffect(net.minecraft.world.effect.MobEffects.POISON).getDuration()==Math.round(duration*0.75),"Splash snapshot or falloff incorrect");
@@ -3300,7 +3300,7 @@ public final class BattleExtensionGameTests {
         player.getInventory().setItem(0,potion);
         var battle=new BattleSession(player,main,definitions("ground"),player);
         battle.use(player,0,"mineturn:throw_lingering",main.getId());var shot=battle.shot;
-        battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+        battle.submitShot(player,shot.token,shot.windowCentreNanos());
         var cloud=battle.clouds.getFirst();Vec3 center=cloud.position();
         h.runAfterDelay(40,()->{
             try {
@@ -3372,7 +3372,7 @@ public final class BattleExtensionGameTests {
             bow.setDamageValue(bow.getMaxDamage()-1);
             battle.use(player,0,"mineturn:shoot_tipped",mob.getId());var shot=battle.shot;
             h.assertTrue(bow.isEmpty() && spare.getCount()==2,"Loaded shot required inventory ammo or did not break weapon");
-            battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            battle.submitShot(player,shot.token,shot.windowCentreNanos());
             h.assertTrue(mob.getHealth()==18 && mob.hasEffect(net.minecraft.world.effect.MobEffects.POISON),"Loaded potion snapshot lost after weapon broke");
         }finally{battle.close("test");cleanup(player);mob.discard();}
         h.succeed();
@@ -3391,7 +3391,7 @@ public final class BattleExtensionGameTests {
         var battle=new BattleSession(player,main,definitions("ground"),player);battle.add(left);battle.add(right);
         try {
             battle.use(player,0,"mineturn:shoot_spectral",main.getId());var shot=battle.shot;
-            battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            battle.submitShot(player,shot.token,shot.windowCentreNanos());
             h.assertTrue(main.getHealth()==18 && left.getHealth()==18 && right.getHealth()==18
                     && left.hasEffect(net.minecraft.world.effect.MobEffects.GLOWING),"Stored three-shot load lost lanes or effects");
             h.assertTrue(spare.getCount()==4 && bow.get(component).isEmpty(),"Loaded multishot consumed spare arrows");
@@ -3404,7 +3404,7 @@ public final class BattleExtensionGameTests {
             bow.enchant(h.getLevel().registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.ENCHANTMENT)
                     .getHolderOrThrow(net.minecraft.world.item.enchantment.Enchantments.MULTISHOT),1);
             battle.use(player,0,"mineturn:shoot_spectral",main.getId());shot=battle.shot;
-            battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            battle.submitShot(player,shot.token,shot.windowCentreNanos());
             h.assertTrue(main.getHealth()==12 && left.getHealth()==18 && right.getHealth()==18,"Enchantment expanded stored single shot into extra lanes");
         }finally{battle.close("test");cleanup(player);main.discard();left.discard();right.discard();}
         h.succeed();
@@ -3419,7 +3419,7 @@ public final class BattleExtensionGameTests {
         var battle=new BattleSession(player,mob,definitions("ground"),player);
         try {
             battle.use(player,0,"mineturn:shoot_firework",mob.getId());var shot=battle.shot;
-            battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            battle.submitShot(player,shot.token,shot.windowCentreNanos());
             h.assertTrue(mob.getHealth()==15 && spare.getCount()==2 && bow.get(component).isEmpty(),"Loaded firework ignored stars or consumed spare rocket");
             battle.budget=new TurnBudget(4);battle.member(player).cooldowns.clear();
             bow.set(component,net.minecraft.world.item.component.ChargedProjectiles.of(rockets(1,1)));
@@ -3448,7 +3448,7 @@ public final class BattleExtensionGameTests {
             battle.use(player,0,"mineturn:shoot_tipped",mob.getId(),20,expected);var shot=battle.shot;
             h.assertTrue(poison.getCount()==3 && slow.getCount()==2,"Selected ammunition consumed first matching stack instead");
             slow.set(net.minecraft.core.component.DataComponents.POTION_CONTENTS,poison.get(net.minecraft.core.component.DataComponents.POTION_CONTENTS));
-            battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            battle.submitShot(player,shot.token,shot.windowCentreNanos());
             h.assertTrue(mob.hasEffect(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN) && !mob.hasEffect(net.minecraft.world.effect.MobEffects.POISON),"Selected ammunition did not retain paid snapshot");
             var packet=battle.snapshot(player);var buffer=new net.minecraft.network.FriendlyByteBuf(io.netty.buffer.Unpooled.buffer());
             try{com.matuvent.mineturn.network.BattleNetwork.State.CODEC.encode(buffer,packet);
@@ -3473,7 +3473,7 @@ public final class BattleExtensionGameTests {
                 h.assertTrue(decoded.request().equals(request) && decoded.ammoSlot()==40 && ItemStack.isSameItemSameComponents(decoded.expected(),charged),"Selected ammo packet lost components");
                 battle.use(player,0,request.action(),mob.getId(),decoded.ammoSlot(),decoded.expected());
             }finally{buffer.release();}
-            var shot=battle.shot;battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            var shot=battle.shot;battle.submitShot(player,shot.token,shot.windowCentreNanos());
             h.assertTrue(mob.getHealth()==15 && charged.getCount()==1 && empty.getCount()==3,"Selected offhand fireworks used wrong stars or consumption");
         }finally{battle.close("test");cleanup(player);mob.discard();}
         h.succeed();
@@ -3518,7 +3518,7 @@ public final class BattleExtensionGameTests {
             h.assertTrue(potion.getCount()==3 && battle.budget.canAct(),"Ground preview consumed potion");
             battle.usePotionPoint(player,0,action,point);var shot=battle.shot;
             potion.set(net.minecraft.core.component.DataComponents.POTION_CONTENTS,new net.minecraft.world.item.alchemy.PotionContents(net.minecraft.world.item.alchemy.Potions.WATER));
-            battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            battle.submitShot(player,shot.token,shot.windowCentreNanos());
             h.assertTrue(mob.hasEffect(net.minecraft.world.effect.MobEffects.POISON) && !outsider.hasEffect(net.minecraft.world.effect.MobEffects.POISON)
                     && potion.getCount()==2 && !battle.budget.canAct(),"Ground potion lost snapshot, scope or cost");
             var packet=battle.snapshot(player);var buf=new net.minecraft.network.FriendlyByteBuf(io.netty.buffer.Unpooled.buffer());
@@ -3540,13 +3540,13 @@ public final class BattleExtensionGameTests {
             battle.budget=new TurnBudget(4);battle.member(player).cooldowns.clear();
             battle.usePotionPoint(player,0,action,point);shot=battle.shot;
             for(int y=1;y<=3;y++)h.setBlock(4,y,2,Blocks.STONE);
-            battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            battle.submitShot(player,shot.token,shot.windowCentreNanos());
             h.assertTrue(battle.clouds.isEmpty() && potion.getCount()==1,"New wall did not invalidate ground throw");
             for(int y=1;y<=3;y++)h.setBlock(4,y,2,Blocks.AIR);
             battle.budget=new TurnBudget(4);battle.member(player).cooldowns.clear();
             battle.usePotionPoint(player,0,action,point);shot=battle.shot;
             battle.place(mob,mob.position().add(2,0,0));
-            battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            battle.submitShot(player,shot.token,shot.windowCentreNanos());
             h.assertTrue(battle.clouds.size()==1 && battle.clouds.getFirst().position().equals(point) && potion.isEmpty(),"Ground cloud followed entity instead of point");
             var cloud=battle.clouds.getFirst();battle.close("test");h.assertTrue(cloud.isRemoved(),"Ground cloud survived battle exit");
         }finally{if(!battle.closed)battle.close("test");cleanup(player);mob.discard();}h.succeed();
@@ -3564,7 +3564,7 @@ public final class BattleExtensionGameTests {
             h.assertTrue(rejected && potion.getCount()==2 && battle.budget.canAct(),"Ally throw accepted enemy target");
             battle.use(player,0,"mineturn:throw_splash_ally",friend.getId());var shot=battle.shot;
             h.assertTrue(potion.getCount()==1 && !battle.budget.canAct() && friend.getHealth()==10,"Ally throw bypassed timing or payment");
-            battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            battle.submitShot(player,shot.token,shot.windowCentreNanos());
             h.assertTrue(friend.getHealth()>10,"Ally potion did not heal selected ally");
         }finally{battle.close("test");cleanup(player);mob.discard();friend.discard();}h.succeed();
     }
@@ -3653,7 +3653,7 @@ public final class BattleExtensionGameTests {
                 int lanes=Math.min(remaining,3);
                 h.assertTrue(bow.isEmpty()==(remaining<=2) && (bow.isEmpty() || bow.get(component).isEmpty())
                         && shot.weapon.get(component).getItems().size()==lanes,"Live charge or launched lane snapshot incorrect");
-                battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+                battle.submitShot(player,shot.token,shot.windowCentreNanos());
                 int sides=(left.getHealth()<24?1:0)+(right.getHealth()<24?1:0);
                 h.assertTrue(main.getHealth()==18 && sides==lanes-1 && player.getInventory().getItem(10).getCount()==(loaded?2:1),"Crossbow fired extra lanes or consumed extra ammo");
             }
@@ -3674,7 +3674,7 @@ public final class BattleExtensionGameTests {
             bow.setDamageValue(bow.getMaxDamage()-4);battle.budget=new TurnBudget(4);battle.member(player).cooldowns.clear();
             battle.use(player,0,"mineturn:shoot_firework",mob.getId());var shot=battle.shot;
             h.assertTrue(bow.isEmpty() && shot.weapon.get(component).getItems().size()==2 && ammo.getCount()==1,"Loaded rocket break count or inventory cost incorrect");
-            battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            battle.submitShot(player,shot.token,shot.windowCentreNanos());
             h.assertTrue(mob.getHealth()==15,"Broken rocket weapon lost component snapshot or stacked explosion");
         }finally{battle.close("test");cleanup(player);mob.discard();}h.succeed();
     }
@@ -3774,9 +3774,9 @@ public final class BattleExtensionGameTests {
             battle.budget=new TurnBudget(4);battle.use(player,4,"mineturn:throw_trident",mob.getId());var shot=battle.shot;
             var drops=h.getLevel().getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class,mob.getBoundingBox().inflate(2),e->e.getItem().is(net.minecraft.world.item.Items.TRIDENT));
             h.assertTrue(weapon.isEmpty() && drops.size()==1 && ItemStack.matches(expected,drops.getFirst().getItem()) && !battle.budget.canAct(),"Throw lost components/durability or duplicated weapon");
-            battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            battle.submitShot(player,shot.token,shot.windowCentreNanos());
             h.assertTrue(mob.getHealth()==7 && mob.getDeltaMovement().lengthSqr()==0,"Native player trident hit damage or no-knockback rule incorrect");
-            battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            battle.submitShot(player,shot.token,shot.windowCentreNanos());
             h.assertTrue(mob.getHealth()==7,"Trident damage replayed");
             battle.close("test");h.assertTrue(drops.getFirst().isAlive(),"Closing battle deleted recoverable weapon");
             drops.getFirst().discard();
@@ -4141,7 +4141,7 @@ public final class BattleExtensionGameTests {
             battle.useGrant(player,"accessory_example:laser",mob.getId());var shot=battle.shot;float health=mob.getHealth();
             h.assertTrue(player.experienceLevel==3 && battle.budget.mainActions()==0 && battle.budget.bonusActions()==1,"Example laser payment incorrect");
             player.setItemSlot(EquipmentSlot.CHEST,ItemStack.EMPTY);
-            battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            battle.submitShot(player,shot.token,shot.windowCentreNanos());
             battle.submitShot(player,shot.token,shot.startNanos);
             h.assertTrue(mob.getHealth()==health && player.experienceLevel==3 && !battle.ready(player,"accessory_example:laser") && battle.budget.remaining()==movement,"Revoked example hit/refunded or duplicate charged");
         }finally{battle.close("test");cleanup(player);mob.discard();}h.succeed();
@@ -4242,7 +4242,7 @@ public final class BattleExtensionGameTests {
             var snow=new ItemStack(net.minecraft.world.item.Items.SNOWBALL,3);player.getInventory().setItem(4,snow);float hp=mob.getHealth();
             battle.use(player,4,"mineturn:throw_snowball",mob.getId());var shot=battle.shot;
             h.assertTrue(snow.getCount()==2 && !battle.budget.canAct() && mob.getHealth()==hp,"Snowball failed to pay once at launch");
-            battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            battle.submitShot(player,shot.token,shot.windowCentreNanos());
             h.assertTrue(mob.getHealth()==hp-3 && !mob.hasEffect(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN) && snow.getCount()==2,"Snowball native blaze damage or consumption incorrect");
             battle.submitShot(player,shot.token,shot.startNanos);h.assertTrue(mob.getHealth()==hp-3,"Snowball duplicate submission hit twice");
             battle.budget=new TurnBudget(4);battle.use(player,4,"mineturn:throw_snowball",mob.getId());shot=battle.shot;battle.submitShot(player,shot.token,shot.startNanos);
@@ -4254,7 +4254,7 @@ public final class BattleExtensionGameTests {
         var player=player(h);var mob=h.spawnWithNoFreeWill(EntityType.PILLAGER,new BlockPos(5,1,2));var battle=new BattleSession(player,mob,definitions("ground"),player);
         try{
             var snow=new ItemStack(net.minecraft.world.item.Items.SNOWBALL,2);player.getInventory().setItem(4,snow);player.getAbilities().instabuild=true;float hp=mob.getHealth();
-            battle.use(player,4,"mineturn:throw_snowball",mob.getId());var shot=battle.shot;battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            battle.use(player,4,"mineturn:throw_snowball",mob.getId());var shot=battle.shot;battle.submitShot(player,shot.token,shot.windowCentreNanos());
             h.assertTrue(mob.getHealth()==hp && !mob.hasEffect(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN) && snow.getCount()==2 && !battle.budget.canAct(),"Ordinary snowball invented damage/debuff or infinite-material costs wrong");
         }finally{battle.close("test");cleanup(player);mob.discard();}h.succeed();
     }
@@ -4798,7 +4798,7 @@ public final class BattleExtensionGameTests {
                     battle.finishShot(scenario!=3);
                     float expected=scenario==2?11:scenario==3?24:16;
                     h.assertTrue(mob.getHealth()==expected,"Channeling weather/roof/miss incorrect: "+scenario+" health="+mob.getHealth());
-                    battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+                    battle.submitShot(player,shot.token,shot.windowCentreNanos());
                     h.assertTrue(mob.getHealth()==expected,"Channeling replayed after token consumed");
                 }finally{battle.close("test");clearChannelingItems(h,mob);cleanup(player);mob.discard();}
             }
@@ -4937,10 +4937,10 @@ public final class BattleExtensionGameTests {
             h.assertTrue(drops.size()==1,"Missing real trident recovery item");
             drops.getFirst().getItem().set(net.minecraft.core.component.DataComponents.ENCHANTMENTS,net.minecraft.world.item.enchantment.ItemEnchantments.EMPTY);
             player.getInventory().setItem(4,new ItemStack(net.minecraft.world.item.Items.STICK));
-            battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            battle.submitShot(player,shot.token,shot.windowCentreNanos());
             float health=100-20.5f*(1-(20-20.5f/4)/25);
             h.assertTrue(Math.abs(mob.getHealth()-health)<0.001,"Impaling throw used live inventory/drop enchantments or bypassed armor");
-            battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            battle.submitShot(player,shot.token,shot.windowCentreNanos());
             h.assertTrue(Math.abs(mob.getHealth()-health)<0.001,"Impaling hit replayed");drops.getFirst().discard();
         }finally{battle.close("test");cleanup(player);mob.discard();}h.succeed();
     }
@@ -5024,7 +5024,7 @@ public final class BattleExtensionGameTests {
         try {
             battle.use(player,0,"mineturn:shoot_firework",main.getId());var shot=battle.shot;
             ammo.set(net.minecraft.core.component.DataComponents.FIREWORKS,new net.minecraft.world.item.component.Fireworks(1,List.of()));
-            battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            battle.submitShot(player,shot.token,shot.windowCentreNanos());
             h.assertTrue(main.getHealth()==15 && Math.abs(near.getHealth()-(24-9*Math.sqrt(0.8)))<0.001,"Firework stars or native falloff incorrect");
             h.assertTrue(outside.getHealth()==24 && blocked.getHealth()==24,"Explosion escaped battle or wall");
             h.assertTrue(ammo.getCount()==1 && bow.getDamageValue()==3 && !battle.ready(player,"mineturn:shoot"),"Firework costs or shared cooldown incorrect");
@@ -5049,10 +5049,10 @@ public final class BattleExtensionGameTests {
         try {
             battle.use(player,0,"mineturn:shoot_firework",main.getId());var shot=battle.shot;
             h.assertTrue(Math.abs(battle.member(player).cooldowns.get("mineturn:shoot")-battle.clock.time()-40)<0.001,"Quick Charge did not apply to firework");
-            battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            battle.submitShot(player,shot.token,shot.windowCentreNanos());
             h.assertTrue(main.getHealth()==17 && left.getHealth()==17 && right.getHealth()==17,"Multishot explosions stacked on same target");
             battle.budget=new TurnBudget(4);battle.member(player).cooldowns.clear();player.getInventory().setItem(10,rockets(1,0));
-            battle.use(player,0,"mineturn:shoot_firework",main.getId());shot=battle.shot;battle.submitShot(player,shot.token,shot.startNanos+(long)shot.action.ranged().durationMs()*500_000L);
+            battle.use(player,0,"mineturn:shoot_firework",main.getId());shot=battle.shot;battle.submitShot(player,shot.token,shot.windowCentreNanos());
             h.assertTrue(main.getHealth()==17 && left.getHealth()==17 && player.getInventory().getItem(10).isEmpty(),"Empty rocket caused damage or was not consumed");
         }finally{battle.close("test");cleanup(player);main.discard();left.discard();right.discard();}
         h.succeed();
@@ -5085,6 +5085,29 @@ public final class BattleExtensionGameTests {
             h.assertTrue(path.cost()>1.4 && path.destination().y>mob.getY(),"Ground mob could not move upward underwater");
             var action=battle.definitions.actions().get("mineturn:shoot");
             h.assertTrue(action.ranged().durationMs()==1200 && action.ranged().width(0)==0.4 && action.ranged().width(10)<0.17,"Ranged difficulty defaults unchanged");
+        }finally{battle.close("test");cleanup(player);mob.discard();}
+        h.succeed();
+    }
+    /** The server, not the client, decides when the ranged window sits on the bar. */
+    @GameTest(template="empty")
+    public static void rangedWindowPositionIsServerRandomized(GameTestHelper h) {
+        var player=player(h);var mob=h.spawnWithNoFreeWill(EntityType.PILLAGER,new BlockPos(8,1,2));
+        var battle=new BattleSession(player,mob,definitions("ground"),player);
+        var action=battle.definitions.actions().get("mineturn:shoot");
+        try {
+            var shots=new java.util.ArrayList<RangedShot>();
+            for(int i=0;i<40;i++)shots.add(new RangedShot(player,mob,"mineturn:shoot",action,new ItemStack(net.minecraft.world.item.Items.BOW),System.nanoTime()));
+            double minCentre=1,maxCentre=0;boolean varied=false;
+            for(int i=0;i<shots.size();i++){
+                var s=shots.get(i);double centre=(s.low+s.high)/2;
+                minCentre=Math.min(minCentre,centre);maxCentre=Math.max(maxCentre,centre);
+                h.assertTrue(centre>=0.25-1e-9 && centre<=0.75+1e-9,"Window centre escaped the randomized range: "+centre);
+                h.assertTrue(s.hit(s.windowCentreNanos()),"Centre of the window missed");
+                h.assertTrue(!s.hit(s.startNanos-1_000_000L),"Submission before the bar started scored a hit");
+                if(i>0 && Math.abs((shots.get(i-1).low+shots.get(i-1).high)/2-centre)>1e-6)varied=true;
+            }
+            h.assertTrue(varied,"Window centre never moved across 40 shots");
+            h.assertTrue(maxCentre-minCentre>0.05,"Window positions were not meaningfully varied: "+minCentre+".."+maxCentre);
         }finally{battle.close("test");cleanup(player);mob.discard();}
         h.succeed();
     }

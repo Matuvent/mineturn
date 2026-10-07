@@ -166,7 +166,7 @@ CombatEffects.register(ResourceLocation.parse("mymod:my_effect"), new CombatEffe
 
 | 级别 | 位置 | 问题 |
 | --- | --- | --- |
-| **Major** | `RangedShot.java:29-35`、`BattleManager.java:192` | 远程命中窗口的 `low`/`high` 完全确定，命中结果只取决于服务端收到 `AimSubmit` 的时间戳。改写过的客户端可以通过精确控制发包时刻做到**每发必中**。 |
+| （无未修复的 Major 项） | — | 远程判定窗口已改为服务端随机（窗口位置与按下前的引导时长均由服务端决定，客户端仅作答），不再依赖客户端发包时刻。 |
 
 已修复异常关闭的成员锁残留及重载同步/异步结束计数交接；AI 回调溢出现在会提示玩家。真实未完成的重载仍暂停新战斗，不超时强制放行。详见审查报告顶部的后续修复记录。
 
