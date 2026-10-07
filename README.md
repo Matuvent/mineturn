@@ -106,6 +106,25 @@ Requires **JDK 21**.
 
 On Windows use `gradlew.bat`.
 
+### `git push` fails with "Connection was reset"?
+
+On some networks (notably direct connections from mainland China), `git push` reports:
+
+```text
+fatal: unable to access 'https://github.com/...': Recv failure: Connection was reset
+```
+
+while `git ls-remote` (a read operation) works fine and github.com loads in a browser. That is
+interference with the **authenticated POST transport**, not a problem with your account or the
+repository. These two settings make it reliable (`HTTP/1.1` is the actual fix):
+
+```bash
+git config http.version HTTP/1.1
+git config http.postBuffer 524288000
+```
+
+If it still fails, switch the remote to SSH (`git@github.com:Matuvent/mineturn.git`) or configure a local proxy.
+
 ## Playing
 
 In survival mode, hit an ordinary mob that you do not one-shot. Left-drag rotates the camera, the scroll wheel
@@ -165,7 +184,6 @@ multiplayer**. Current open issues, with exact locations:
 | **Critical** | `BattleManager.java:323`, `:186`, `:193`, `:38`, `:338` | The `close()` calls inside exception handlers are themselves unguarded, and `close()` can throw (via `drainCallbacks()` at `BattleSession.java:480`, or the safety-limit `IllegalStateException` at `BattleSession.java:1252`). A single cleanup failure can abort a server tick. |
 | **Major** | `BattleManager.java:33`, `:269` + `ServerReloadMixin.java:21` | If a `/reload` completion future never runs, the `reloads` counter never returns to zero and `damaged()` then **silently refuses to start any new battle forever**, with no log or player feedback. |
 | **Major** | `RangedShot.java:29-35`, `BattleManager.java:192` | The ranged hit window's `low`/`high` are fully deterministic, and the hit result depends only on the server-side timestamp of the incoming `AimSubmit`. A modified client can time the packet to hit every shot. |
-| Minor | `BattleSession.java:357-360`, `:317` | `idleTicks` is reset by movement (`TurnBudget.java:37`), so the advertised ~30 s turn limit never expires while a player keeps nudging. The GUI countdown correspondingly jumps back to 30 s. |
 | Minor | `BattleSession.java:1233` | When the AI callback queue overflows, the whole queue is dropped with only a log line — no player-visible notice. |
 | Minor | `BattleSession.java:1303-1308` vs `:394` | `ai()` dereferences the state without the null guard that `hasAiActionBudget()` has. Currently unreachable, but only because data-pack validation is strict. |
 | Minor | `battle/BattleStatus.java:32` vs `:16` | `statusTicks` and `entity.tickCount` are two different clocks for the same conceptual thing. |

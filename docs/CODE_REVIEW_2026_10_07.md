@@ -249,45 +249,39 @@ public record MainThreadPayloadHandler<T extends CustomPacketPayload>(IPayloadHa
 
 ---
 
-## 4. 玩家操作 30 秒期限的实际行为与文档不符
+## 4. 玩家操作期限：移动重置 —— **经确认为正确行为，已改文档**
 
-**可信度：[需确认设计]** ｜ 严重度：Minor
+**可信度：[不成立]**（原判为 Minor 缺陷，2026-10-07 经所有者确认行为正确）
 
-### 位置
+### 行为
 
-`BattleSession.java:357-360`、`:317`；`TurnBudget.java:37`
+`BattleSession.java:357-358`
 
 ```java
-// BattleSession.java:357-358
 if (lastActivity != budget.activity()) { idleTicks = 0; lastActivity = budget.activity(); }
 if (actor instanceof ServerPlayer && motion == null && shot == null && ++idleTicks >= 600) {
     message("操作超时，自动结束回合。"); next(); syncAll(); return;
 }
 ```
 
-```java
-// TurnBudget.java:34-38  —— move() 也会 activity++
-public void move(double distance) { ...; remaining = Math.max(0, remaining - distance); activity++; }
-```
+`TurnBudget.move()`（`TurnBudget.java:37`）也会 `activity++`，因此**每次成功移动都会重置 30 秒期限**。
+界面倒计时（`BattleSession.java:317`）随之回到 30 秒。
 
-```java
-// BattleSession.java:317  —— 倒计时显示
-actor instanceof ServerPlayer ? (lastActivity != budget.activity() ? 30 : (600 - idleTicks + 19) / 20) : -1
-```
+### 结论
 
-### 问题
+这是**刻意设计**：期限是"上次有效操作后的宽限期"，不是回合总时长上限。
+玩家持续做出有效操作（含移动）时回合不会超时；只有连续 30 秒没有任何有效操作才会超时。
 
-`budget.activity()` 在**移动**时也会自增，因此玩家只要持续小幅移动，`idleTicks` 每 tick 被清零，
-回合**永远不会超时**。而 UI 发出的倒计时会反复跳回 30 秒。
+早前版本的第 4 节曾把它记为"文档与实现不符"的缺陷，**判断有误** —— 真正的毛病在于
+`TURN_RESOURCES.md` 没有把"倒计时会跳回 30 秒"写成预期现象，导致读者（包括审查者）
+把它误读为显示错误或逻辑缺陷。
 
-`docs/PROTOTYPE.md:38` 写的是"玩家操作有约 30 秒期限"。
+### 已改文档（未改任何代码）
 
-### 需要你决定
-
-- **想让移动也重置期限** → 保持代码不变，改文档说明。
-- **想要真正的 30 秒墙钟** → 改用 `turnTicks` 或 AV 时间计时，不再依赖 `activity()`。
-
-两种都合理，取决于你想要的手感。**改之前请先定这个。**
+| 文件 | 改动 |
+| --- | --- |
+| `TURN_RESOURCES.md:18` | 补充一段明确说明：期限是"上次有效操作后的宽限"，倒计时回跳是预期表现、不是显示错误，并说明这样设计的原因 |
+| `PROTOTYPE.md:38` | 把"约 30 秒期限，成功行动后重置"改写为准确描述（明确列出移动也会重置），并链接到 `TURN_RESOURCES.md` 对应小节 |
 
 ---
 
@@ -538,29 +532,58 @@ for (int shot = 0; shot < 40; shot++)
 
 ---
 
-## 12. CI 只构建、不跑集成测试
+## 12. CI 只构建、不跑集成测试（**已于 2026-10-07 修复**）
 
 **可信度：[已证实]** ｜ 严重度：中（工程改进）
 
-`.github/workflows/build.yml:29-30` 只执行 `./gradlew build`：
+原 `.github/workflows/build.yml` 只执行 `./gradlew build`，而 `build` 不会运行 `runGameTestServer`，
+因此 **CI 绿灯不代表 287 项集成测试通过**。本项目的功能正确性几乎全部由那些测试保障，
+只做编译检查收益有限 —— 尤其 40 个混入类的注入目标只在加载期验证，编译期完全看不到。
+
+### 已实施
+
+在 `.github/workflows/build.yml` 中新增独立的 `gametest` job（与 `build` 并行）：
 
 ```yaml
-      - name: Build with Gradle
-        run: ./gradlew build
-```
+  gametest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+      - uses: gradle/actions/setup-gradle@v4
 
-`build` 不会运行 `runGameTestServer`，因此 **CI 绿灯不代表 287 项集成测试通过**。
-本项目的功能正确性几乎全部由那些测试保障，只做编译检查收益有限。
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
 
-建议追加一个步骤（差别只有最后一行）：
-
-```yaml
       - name: Run server integration tests
         run: ./gradlew runGameTestServer
+
+      - name: Upload GameTest logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gametest-logs
+          path: run-gametest/logs/
+          if-no-files-found: ignore
+          retention-days: 7
 ```
 
-`build.gradle` 已配置好 `gameTestServer` run 与 `neoforge.enabledGameTestNamespaces`，
-GameTest 世界位于隔离的 `run-gametest/`（已加入 `.gitignore`），可直接在 CI 上运行，耗时约 2 分钟。
+设计要点：
+
+- **拆成两个 job** 而不是串在一个里，这样"编译失败"与"行为回归"在 checks 列表里可区分
+- **失败也上传日志**（`if: always()`），否则测试失败时拿不到 `latest.log` 里的断言消息
+- **无需额外配置**：`build.gradle` 已配好 `gameTestServer` run 与 `neoforge.enabledGameTestNamespaces`，
+  世界写入已 gitignore 的 `run-gametest/`
+- 首次运行会额外下载客户端资源（`createMinecraftArtifacts`），耗时长于本地的约 2 分钟
+
+### 仍未覆盖
+
+客户端侧依然没有自动化验证：`runGameTestServer` 是专用服务端，
+`BattleClient`、`BattleScreen`、各渲染器与 `ProjectileAnimations` 不在其执行范围内。
+要覆盖客户端需要另加 `runClient` 的 GameTest（见第 8 节）。
 
 ---
 
@@ -599,7 +622,8 @@ GameTest 世界位于隔离的 `run-gametest/`（已加入 `.gitignore`），可
 | 4 | 第 8 条客户端测试 | 当前最大的验证盲区 |
 | 5 | 第 4、7 条 | **需要你先定设计**，不要直接改代码 |
 | 6 | 第 5、6、10 条 | 一致性/健壮性，可批量处理 |
+| — | 第 4 条 | ✅ 经确认**行为正确**，已改文档（移动重置期限是刻意设计） |
 | — | 第 11 条 | ✅ 已于 2026-10-07 完成（文档修正） |
-| — | 第 12 条 | 工程改进：CI 加跑集成测试（见该节 YAML 片段） |
+| — | 第 12 条 | ✅ 已于 2026-10-07 完成（CI 新增 gametest job） |
 
 **每次改动后**：`gradlew.bat compileJava` → `gradlew.bat runGameTestServer`，确认 287/287 不退化。

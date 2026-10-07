@@ -97,6 +97,23 @@ data/<命名空间>/function/…/*.mcfunction            # 函数 AI 的回调
 
 Windows 下用 `gradlew.bat`。
 
+### 提交代码时 `git push` 被重置？
+
+在部分网络环境下（尤其国内直连 GitHub），`git push` 会报：
+
+```text
+fatal: unable to access 'https://github.com/...': Recv failure: Connection was reset
+```
+
+而 `git ls-remote`（读操作）正常、`github.com` 网页也能打开 —— 这是**带认证的 POST 传输被干扰**，与账号或仓库权限无关。加上下面两项即可稳定（`HTTP/1.1` 是主要修复项）：
+
+```bash
+git config http.version HTTP/1.1
+git config http.postBuffer 524288000
+```
+
+若仍然失败，可改用 SSH 远程（`git@github.com:Matuvent/mineturn.git`）或配置本地代理。
+
 ## 试玩
 
 生存模式下打一只你没有秒杀的普通怪物。左键拖动旋转镜头，滚轮缩放，底部按钮对应快捷栏，
@@ -152,7 +169,6 @@ CombatEffects.register(ResourceLocation.parse("mymod:my_effect"), new CombatEffe
 | **Critical** | `BattleManager.java:323`、`:186`、`:193`、`:38`、`:338` | 异常处理块里的 `close()` 调用**自身没有保护**，而 `close()` 确实会抛（经 `BattleSession.java:480` 的 `drainCallbacks()`，或 `BattleSession.java:1252` 的安全上限 `IllegalStateException`）。单次清理失败可能中断服务端 tick。 |
 | **Major** | `BattleManager.java:33`、`:269` + `ServerReloadMixin.java:21` | 如果 `/reload` 的完成 future 永不执行，`reloads` 计数器再也不会归零，此后 `damaged()` 会**静默拒绝开启任何新战斗，且没有日志或玩家提示**。 |
 | **Major** | `RangedShot.java:29-35`、`BattleManager.java:192` | 远程命中窗口的 `low`/`high` 完全确定，命中结果只取决于服务端收到 `AimSubmit` 的时间戳。改写过的客户端可以通过精确控制发包时刻做到**每发必中**。 |
-| Minor | `BattleSession.java:357-360`、`:317` | `idleTicks` 会被移动重置（`TurnBudget.java:37`），所以文档所说的约 30 秒回合期限在玩家持续小幅移动时**永不超时**；界面对应的倒计时会反复跳回 30 秒。 |
 | Minor | `BattleSession.java:1233` | AI 回调队列溢出时整队丢弃，只写日志，**玩家侧无任何提示**。 |
 | Minor | `BattleSession.java:1303-1308` 对比 `:394` | `ai()` 取状态时没有 `hasAiActionBudget()` 里那样的 null 守卫。当前不可达，但仅靠数据包校验严格来保证。 |
 | Minor | `battle/BattleStatus.java:32` 对比 `:16` | `statusTicks` 与 `entity.tickCount` 表达同一个概念，却是两个不同的时钟。 |

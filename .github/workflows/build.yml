@@ -22,9 +22,48 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       # This is needed to be able to run ./gradlew below
-      # You can run `git update-index --chmod +x gradlew` then remove this step.
+      # You can run `git update-index --chmod=+x gradlew` then remove this step.
       - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
 
       - name: Build with Gradle
         run: ./gradlew build
+
+  # Compiling proves nothing about this mod: ~40 mixins are verified only at load time,
+  # and the data-pack validators, AV clock and cross-system behaviour are covered
+  # exclusively by the GameTest suite. Kept as a separate job so a compile error and a
+  # behaviour regression stay distinguishable in the checks list.
+  gametest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      # Runs headless, writes its world to the gitignored run-gametest/ directory,
+      # and exits non-zero if any required test fails.
+      - name: Run server integration tests
+        run: ./gradlew runGameTestServer
+
+      - name: Upload GameTest logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gametest-logs
+          path: run-gametest/logs/
+          if-no-files-found: ignore
+          retention-days: 7
