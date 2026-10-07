@@ -20,8 +20,13 @@ public abstract class BattleCameraMixin {
     private void mineturn$orbit(CallbackInfo ci) {
         if (!BattleClient.active()) return;
         detached = true;
-        setRotation(BattleClient.yaw, BattleClient.pitch, 0);
-        setPosition(BattleClient.focus);
-        move(-Math.max(0, getMaxZoom((float) BattleClient.distance) - 0.15f), 0, 0);
+        var override = com.matuvent.mineturn.client.ActionAnimations.cameraPose();
+        float yaw = override != null ? override.yaw() : BattleClient.yaw;
+        float pitch = override != null ? override.pitch() : BattleClient.pitch;
+        double distance = override != null ? override.distance() : BattleClient.distance;
+        Vec3 focus = override != null ? override.focus() : BattleClient.focus;
+        setRotation(yaw, pitch, 0);
+        setPosition(focus);
+        move(-Math.max(0, getMaxZoom((float) distance) - 0.15f), 0, 0);
     }
 }

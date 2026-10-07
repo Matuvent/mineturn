@@ -62,6 +62,7 @@ public final class BattleClient {
         };
         BattleNetwork.receiveState = BattleClient::receive;
         BattleNetwork.receiveProjectile=ProjectileAnimations::receive;
+        BattleNetwork.receiveActionAnimation=ActionAnimations::receive;
         NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post event)->ProjectileAnimations.tick());
         NeoForge.EVENT_BUS.addListener(ProjectileAnimations::render);
         BattleNetwork.receiveOffers=packet->{
@@ -135,6 +136,7 @@ public final class BattleClient {
         offers=java.util.List.of();
         moving=false; motionTarget=null;motionOrder.reset();
         statusLocks.clear();
+        ActionAnimations.clear();
         aim=null;aimSubmitted=false;
         Minecraft mc = Minecraft.getInstance();
         state = null; preview = null; pending = false;

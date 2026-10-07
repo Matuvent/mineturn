@@ -259,4 +259,4 @@ applying only to the template files). It is unrelated to this mod's license and 
 Any textures or sounds under `assets/mineturn/` taken from other projects remain under their authors' terms
 and are not covered by this license.
 
-Network protocol is now **20**. Update client and server together. Motion packets use monotonic sequence numbers; full battle snapshots also carry the current motion state to reject stale position updates. Cleanup/reload error recovery and callback-overflow notices have also been fixed; see the review follow-up record.
+Network protocol is now **21**. Update client and server together. Motion packets use monotonic sequence numbers; full battle snapshots also carry the current motion state to reject stale position updates. Cleanup/reload error recovery and callback-overflow notices have also been fixed; see the review follow-up record.

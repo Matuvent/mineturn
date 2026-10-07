@@ -49,6 +49,7 @@ final class BattleSession {
     }
     long revision;
     long motionSequence;
+    long actionSequence;
     double nextRegen = 100;
     boolean closed;
     String lastMessage = "请选择行动。";
@@ -1251,7 +1252,21 @@ final class BattleSession {
         var context = effectContext(source, target, item, action, true,ammunition,impact);
         activeEffect = context;
         try { BattleManager.authorized(() -> effect.accept(context)); }
-        finally { activeEffect = previous; }
+        finally {
+            activeEffect = previous;
+            broadcastActionAnimation(source, target, action, impact);
+        }
+    }
+    /** One performance per resolved action, broadcast to every player in this battle. Purely presentational. */
+    private void broadcastActionAnimation(LivingEntity source, LivingEntity target, CombatData.Action action, Vec3 impact) {
+        if (closed || source == null || !source.isAlive()) return;
+        var players = players();
+        if (players.isEmpty()) return;
+        Vec3 point = impact != null ? impact : (target != null && target.isAlive() ? target.getBoundingBox().getCenter() : source.getBoundingBox().getCenter());
+        var packet = new BattleNetwork.ActionAnimation(id, ++actionSequence,
+                BattleNetwork.ActionAnimation.idFor(action.effect()), source.getId(),
+                target == null ? source.getId() : target.getId(), point, impact != null);
+        for (var player : players()) BattleNetwork.send(player, packet);
     }
     void callback(Member member, String event, String action, UUID target) {
         callback(member,event,action,target,true);

@@ -22,9 +22,10 @@ public final class BattleNetwork {
     public static Consumer<Aim> receiveAim = ignored -> {};
     public static Consumer<StatusClock> receiveStatusClock = ignored -> {};
     public static Consumer<ProjectileVisual> receiveProjectile=ignored->{};
+    public static Consumer<ActionAnimation> receiveActionAnimation=ignored->{};
     private BattleNetwork() {}
     public static void register(RegisterPayloadHandlersEvent event) {
-        var registrar = event.registrar("20");
+        var registrar = event.registrar("21");
         registrar.playToClient(ProjectileVisual.TYPE,ProjectileVisual.CODEC,(payload,context)->receiveProjectile.accept(payload));
         registrar.playToServer(AmmoUse.TYPE,AmmoUse.CODEC,(payload,context)->{
             if(context.player() instanceof ServerPlayer player) BattleManager.request(player,payload.request(),payload);
@@ -41,6 +42,7 @@ public final class BattleNetwork {
         registrar.playToServer(Request.TYPE, Request.CODEC, (payload, context) -> {
             if (context.player() instanceof ServerPlayer player) BattleManager.request(player, payload);
         });
+        registrar.playToClient(ActionAnimation.TYPE, ActionAnimation.CODEC, (payload, context) -> receiveActionAnimation.accept(payload));
     }
     public static void send(ServerPlayer player, CustomPacketPayload payload) {
         // Mock GameTest connections do not negotiate play channels.
@@ -177,5 +179,27 @@ public final class BattleNetwork {
             buf.writeVarInt(v.entityId);buf.writeUUID(v.entity);buf.writeBoolean(v.locked);buf.writeVarInt(v.fireTicks);
         },buf->new StatusClock(buf.readVarInt(),buf.readUUID(),buf.readBoolean(),buf.readVarInt()));
         @Override public Type<StatusClock> type(){return TYPE;}
+    }
+    /**
+     * One action performance broadcast to every player in the battle. The client resolves the animationId
+     * to a built-in camera/actor animation; the server only says what and where, never how.
+     */
+    public record ActionAnimation(UUID battle, long sequence, ResourceLocation animationId, int actorId, int targetId, Vec3 impact, boolean hasImpact) implements CustomPacketPayload {
+        public static final Type<ActionAnimation> TYPE=new Type<>(ResourceLocation.parse("mineturn:action_animation"));
+        public static final StreamCodec<FriendlyByteBuf,ActionAnimation> CODEC=StreamCodec.of((buf,v)->{
+            buf.writeUUID(v.battle);buf.writeVarLong(v.sequence);buf.writeResourceLocation(v.animationId);
+            buf.writeVarInt(v.actorId);buf.writeVarInt(v.targetId);vector(buf,v.impact);buf.writeBoolean(v.hasImpact);
+        },buf->new ActionAnimation(buf.readUUID(),buf.readVarLong(),buf.readResourceLocation(),buf.readVarInt(),buf.readVarInt(),vector(buf),buf.readBoolean()));
+        @Override public Type<ActionAnimation> type(){return TYPE;}
+        /** Map a resolved action to the client animation id; every action maps to at least {@code mineturn:generic}. */
+        public static ResourceLocation idFor(String effect){
+            if(effect==null)return ResourceLocation.parse("mineturn:generic");
+            return switch(effect){
+                case "mineturn:food","mineturn:eat","mineturn:native_food","mineturn:drink" -> ResourceLocation.parse("mineturn:eat");
+                case "mineturn:damage","mineturn:weapon_melee","mineturn:mob_melee","mineturn:species_melee","mineturn:slime_melee","mineturn:vindicator_strike","mineturn:heavy_strike" -> ResourceLocation.parse("mineturn:melee");
+                case "mineturn:projectile","mineturn:firework","mineturn:skeleton_arrow","mineturn:mob_crossbow","mineturn:pillager_charge","mineturn:player_trident","mineturn:drowned_trident","mineturn:player_snowball","mineturn:snowball_support","mineturn:splash","mineturn:lingering","mineturn:wind_burst","mineturn:ghast_fireball" -> ResourceLocation.parse("mineturn:ranged");
+                default -> ResourceLocation.parse("mineturn:generic");
+            };
+        }
     }
 }
