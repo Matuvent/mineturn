@@ -19,6 +19,13 @@ public final class ActionAnimations {
     private static final ResourceLocation ID_RANGED=ResourceLocation.parse("mineturn:ranged");
     private static final double BLEND_IN_MS=250;
     private static final double BLEND_OUT_MS=180;
+    /**
+     * Framing step per block of actor width: 1.6 keeps a normal 0.6-wide mob at the requested
+     * ~1-block offset while a 4-wide boss is framed about 6.4 blocks out.
+     */
+    private static final double FRAMING_MULTIPLIER=1.6;
+    /** Minimum distance from the aim point, so the camera never ends up inside the target. */
+    private static final double SAFE_CLEARANCE=1.6;
 
     private static Playback playback;
     private static CameraPose blendOutFrom;
@@ -72,7 +79,8 @@ public final class ActionAnimations {
 
     /**
      * Place the camera beside and slightly in front of the actor, looking at the aim point. The offsets
-     * are expressed in the actor's own facing so the framing reads the same regardless of world yaw.
+     * are expressed in the actor's own facing so the framing reads the same regardless of world yaw,
+     * and they scale with the actor's collision box so large mobs do not swallow the frame.
      */
     private static CameraPose computeHold(net.minecraft.client.multiplayer.ClientLevel level,ResourceLocation id,LivingEntity actor,LivingEntity aim){
         double yaw=Math.toRadians(actor.getYRot());
@@ -80,14 +88,28 @@ public final class ActionAnimations {
         Vec3 right=new Vec3(Math.cos(yaw),0,-Math.sin(yaw));
         var key=id.toString();
         boolean eating=key.equals(ID_EAT.toString());
-        double side=key.equals(ID_RANGED.toString())?0.9:1.0;
-        double front=eating?0.6:1.0;
+        double sideRatio=key.equals(ID_RANGED.toString())?0.9:1.0;
+        double frontRatio=eating?0.6:1.0;
+        // Collision-box driven framing: a 4-wide boss pushes the camera several blocks out and back.
+        double scale=Math.max(1.0,actor.getBbWidth()*FRAMING_MULTIPLIER);
+        double side=scale*sideRatio, front=scale*frontRatio;
+        double lift=Math.max(0.25,actor.getBbHeight()*0.2);
         Vec3 base=actor.position().add(0,actor.getEyeHeight()*0.7,0);
         Vec3 eye=aim.getEyePosition();
-        Vec3 wanted=base.add(forward.scale(front)).add(right.scale(side)).add(0,0.25,0);
-        // A fixed cut can land inside a wall; pull it back along the sight line until it is clear.
-        Vec3 position=clearSight(level,wanted,eye,actor);
+        Vec3 wanted=base.add(forward.scale(front)).add(right.scale(side)).add(0,lift,0);
+        // First keep the frame clear of the target, then clamp it out of any wall on the sight line.
+        Vec3 spaced=setBack(wanted,eye,scale);
+        Vec3 position=clearSight(level,spaced,eye,actor);
         return poseLookAt(position,eye);
+    }
+
+    /** Back the camera off along the sight line if the framing step placed it too close to the aim point. */
+    private static Vec3 setBack(Vec3 position,Vec3 eye,double scale){
+        Vec3 away=position.subtract(eye);
+        double gap=away.length();
+        double minimum=Math.max(SAFE_CLEARANCE,scale*0.5);
+        if(gap>=minimum || gap<1e-6)return position;
+        return eye.add(away.scale(minimum/gap));
     }
 
     /** Clamp the camera toward the aim point if the desired spot is blocked or outside loaded chunks. */
