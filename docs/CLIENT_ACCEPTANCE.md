@@ -40,7 +40,7 @@ java.lang.IllegalArgumentException: IModBusEvent events are not allowed on the c
 | G0.1 | `gradlew runClient` 启动到主菜单并进入一个世界 | 能正常启动；**没有** `Failed to create mod instance`；**没有** `broken mod state` | 未测 | | |
 | G0.2 | 在日志中搜索 `Cowardly refusing to send event` | **一条都没有**。出现任意一条即说明 mod 构造已失败，必须先修总线注册 | 未测 | | |
 | G0.3 | 在日志中搜索 `Failed to create mod instance` / `IModBusEvent` | **一条都没有** | 未测 | | |
-| G0.4 | 在日志中取一次 `MineTurn animation camera rules: N` | 出现且 `N ≥ 5`（根 camera + melee/eat/ranged/generic）。**这一行不出现，说明 `animation_camera.json` 根本没被加载**，则「机位可配」功能等于未生效 | ✅ 已通过（2026-10-08） | 2026-10-08 | 用户实测：客户端正常启动，该行出现 |
+| G0.4 | 在日志中取一次 `MineTurn animation camera rules: N` | 出现且 `N ≥ 6`（根 camera + melee/ranged/eat/drink/generic）。**这一行不出现，说明 `animation_camera.json` 根本没被加载**，则「机位可配」功能等于未生效 | ✅ 已通过（2026-10-08，当时 `N` 为 5；新增 `drink` 后应为 6） | 2026-10-08 | 用户实测：客户端正常启动，该行出现 |
 | G0.5 | 改动过 `assets/mineturn/mineturn/animation_camera.json` 时，改一个明显数值再进游戏 | 机位按新数值变化；写坏 JSON 时记录错误但**不崩**（回落内置默认） | 未测 | | |
 
 > G0.4 已由用户实测确认。G0.1–G0.3、G0.5 仍为 `未测`，下次改客户端时补。

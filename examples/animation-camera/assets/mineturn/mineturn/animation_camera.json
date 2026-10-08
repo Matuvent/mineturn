@@ -1,0 +1,53 @@
+{
+  "__comment": "MineTurn 动作技能镜头示例（资源包）。安装后本文件会覆盖模组自带的 assets/mineturn/mineturn/animation_camera.json：同命名空间同路径，资源包优先级更高者胜。数值刻意与默认值不同，便于一眼确认是否生效。字段含义见 docs/ACTION_CAMERA_CONFIG.md。",
+  "camera": {
+    "side": 1.1,
+    "front": 1.1,
+    "lift": 0.5,
+    "width_base": 1.35,
+    "width_scale": 1.0,
+    "min_distance": 2.6
+  },
+  "actions": {
+    "melee": {
+      "side": 1.25,
+      "front": 1.15,
+      "lift": 0.5,
+      "width_base": 1.4,
+      "width_scale": 1.0,
+      "min_distance": 2.8
+    },
+    "eat": {
+      "side": 0.8,
+      "front": 0.5,
+      "lift": 0.3,
+      "width_base": 1.2,
+      "width_scale": 0.9,
+      "min_distance": 1.9
+    },
+    "drink": {
+      "side": 0.85,
+      "front": 0.45,
+      "lift": 0.35,
+      "width_base": 1.2,
+      "width_scale": 0.9,
+      "min_distance": 2.0
+    },
+    "ranged": {
+      "side": 0.95,
+      "front": 1.15,
+      "lift": 0.55,
+      "width_base": 1.5,
+      "width_scale": 1.0,
+      "min_distance": 3.0
+    },
+    "generic": {
+      "side": 1.1,
+      "front": 1.1,
+      "lift": 0.5,
+      "width_base": 1.35,
+      "width_scale": 1.0,
+      "min_distance": 2.6
+    }
+  }
+}

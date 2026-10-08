@@ -77,6 +77,7 @@ public final class ActionAnimations {
     private static long durationFor(ResourceLocation id){
         var key=id.toString();
         if(key.equals("mineturn:eat"))return 900;
+        if(key.equals("mineturn:drink"))return 800;
         if(key.equals("mineturn:ranged"))return 800;
         return 700;
     }

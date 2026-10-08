@@ -192,25 +192,30 @@ public final class BattleNetwork {
             buf.writeVarInt(v.priority);buf.writeVarInt(v.actorId);buf.writeVarInt(v.targetId);vector(buf,v.impact);buf.writeBoolean(v.hasImpact);
         },buf->new ActionAnimation(buf.readUUID(),buf.readVarLong(),buf.readResourceLocation(),buf.readVarInt(),buf.readVarInt(),buf.readVarInt(),vector(buf),buf.readBoolean()));
         @Override public Type<ActionAnimation> type(){return TYPE;}
-        /** Map a resolved action to the client animation id; every action maps to at least {@code mineturn:generic}. */
+        /**
+         * Map a resolved action to the client animation id; every action maps to at least
+         * {@code mineturn:generic}. Drink is kept separate from food so the two can be framed
+         * differently.
+         */
         public static ResourceLocation idFor(String effect){
             if(effect==null)return ResourceLocation.parse("mineturn:generic");
             return switch(effect){
-                case "mineturn:food","mineturn:eat","mineturn:native_food","mineturn:drink" -> ResourceLocation.parse("mineturn:eat");
+                case "mineturn:food","mineturn:eat","mineturn:native_food" -> ResourceLocation.parse("mineturn:eat");
+                case "mineturn:drink" -> ResourceLocation.parse("mineturn:drink");
                 case "mineturn:damage","mineturn:weapon_melee","mineturn:mob_melee","mineturn:species_melee","mineturn:slime_melee","mineturn:vindicator_strike","mineturn:heavy_strike" -> ResourceLocation.parse("mineturn:melee");
                 case "mineturn:projectile","mineturn:firework","mineturn:skeleton_arrow","mineturn:mob_crossbow","mineturn:pillager_charge","mineturn:player_trident","mineturn:drowned_trident","mineturn:player_snowball","mineturn:snowball_support","mineturn:splash","mineturn:lingering","mineturn:wind_burst","mineturn:ghast_fireball" -> ResourceLocation.parse("mineturn:ranged");
                 default -> ResourceLocation.parse("mineturn:generic");
             };
         }
         /**
-         * Priority for an animation id. Attacks interrupt whatever is on screen; eating and other minor
-         * actions wait their turn so they cannot cut off a strike.
+         * Priority for an animation id. Attacks interrupt whatever is on screen; eating, drinking and
+         * other minor actions wait their turn so they cannot cut off a strike.
          */
         public static int priorityFor(ResourceLocation animationId){
             if(animationId==null)return ActionAnimationOrder.PRIORITY_GENERIC;
             return switch(animationId.getPath()){
                 case "melee","ranged" -> ActionAnimationOrder.PRIORITY_ATTACK;
-                case "eat" -> ActionAnimationOrder.PRIORITY_EAT;
+                case "eat","drink" -> ActionAnimationOrder.PRIORITY_EAT;
                 default -> ActionAnimationOrder.PRIORITY_GENERIC;
             };
         }

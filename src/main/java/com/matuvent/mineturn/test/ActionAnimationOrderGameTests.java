@@ -86,9 +86,17 @@ public final class ActionAnimationOrderGameTests {
                 "Generic fallback priority is wrong");
         h.assertTrue(BattleNetwork.ActionAnimation.priorityFor(null) == GENERIC,
                 "Null animation id did not fall back to the generic priority");
+        // Drink is deliberately its own id, so drinking and eating can be framed separately. Folding it
+        // back into eat would silently make the two share one camera rule.
+        h.assertTrue(BattleNetwork.ActionAnimation.idFor("mineturn:drink").toString().equals("mineturn:drink"),
+                "Drink no longer maps to its own animation id");
+        h.assertTrue(BattleNetwork.ActionAnimation.idFor("mineturn:food").toString().equals("mineturn:eat"),
+                "Food no longer maps to the eating animation id");
+        h.assertTrue(BattleNetwork.ActionAnimation.priorityFor(ResourceLocation.parse("mineturn:drink")) == EAT,
+                "Drinking was not tagged as a minor action");
         // Every effect the server maps must resolve to a known id with a sane priority.
         for (String effect : java.util.List.of("mineturn:damage", "mineturn:projectile", "mineturn:food",
-                "mineturn:heal", "mineturn:teleport_offset", "mineturn:unknown_effect")) {
+                "mineturn:drink", "mineturn:heal", "mineturn:teleport_offset", "mineturn:unknown_effect")) {
             var id = BattleNetwork.ActionAnimation.idFor(effect);
             int priority = BattleNetwork.ActionAnimation.priorityFor(id);
             h.assertTrue(priority >= EAT, "Effect " + effect + " produced an out-of-range priority: " + priority);

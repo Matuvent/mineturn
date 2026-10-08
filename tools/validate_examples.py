@@ -81,16 +81,21 @@ def check_pack(pack: Path) -> None:
                 if not blob.get("description"):
                     fail(f"{rel(meta)}: 'pack.description' is missing or empty")
 
+    # A pack may carry data/, assets/, or both. A pure resource pack (camera palettes) has no data/.
     data = pack / "data"
-    if not data.is_dir():
-        fail(f"{rel(pack)}: missing data/ directory")
+    assets = pack / "assets"
+    if not data.is_dir() and not assets.is_dir():
+        fail(f"{rel(pack)}: has neither data/ nor assets/")
         return
-    namespaces = [entry for entry in data.iterdir() if entry.is_dir()]
-    if not namespaces:
-        fail(f"{rel(data)}: contains no namespace directory")
-    for namespace in namespaces:
-        if not re.match(r"^[a-z0-9_.-]+$", namespace.name):
-            fail(f"{rel(namespace)}: namespace '{namespace.name}' has invalid characters")
+    for root, label in ((data, "data"), (assets, "assets")):
+        if not root.is_dir():
+            continue
+        namespaces = [entry for entry in root.iterdir() if entry.is_dir()]
+        if not namespaces:
+            fail(f"{rel(root)}: contains no namespace directory")
+        for namespace in namespaces:
+            if not re.match(r"^[a-z0-9_.-]+$", namespace.name):
+                fail(f"{rel(namespace)}: {label} namespace '{namespace.name}' has invalid characters")
 
 
 # --------------------------------------------------------------------------- #
