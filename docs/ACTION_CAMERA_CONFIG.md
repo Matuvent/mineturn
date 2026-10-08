@@ -31,8 +31,17 @@ assets/<命名空间>/mineturn/animation_camera.json
 
 ### 写坏了会怎样
 
-解析失败时**记录错误日志并回落内置默认值**，不会崩溃。
+解析失败时**保留上一套已生效的规则**（不会清空、不会崩溃），并记录一条错误日志：
+
+```
+Invalid animation camera file <file>: <原因>
+Keeping the previous N animation camera rules because a file was rejected
+```
+
 自建资源包时留意日志，或直接用 `tools/validate_examples.py` 静态检查。
+
+> 早期实现曾在解析失败时仍写下"半张表"，导致**整张规则表被清空**（日志还会显示 `rules: 0`，
+> 看起来像正常加载）。现已改为拒绝即保留旧表。
 
 ---
 
@@ -57,6 +66,15 @@ assets/<命名空间>/mineturn/animation_camera.json
 | `width_base` | 格 | 碰撞箱项基数 |
 | `width_scale` | 倍 | 碰撞箱项系数，按实体宽度缩放 |
 | `min_distance` | 格 | 到瞄准点的**最小**距离（沿视线方向），防止镜头插进模型体内 |
+| `blend_out_ms` | 毫秒 | 演出结束**回落到自由镜头**的过渡时长；`0` = 立即回弹。范围 `0..2000`，默认 `80` |
+
+### 切镜是瞬间的
+
+**进入技能机位是硬切，没有任何过渡动画。** 早期版本用 250ms 把镜头"推"过去，
+实际体验是镜头绕着人物晃过去，很晕，因此改为瞬间切换。
+
+`blend_out_ms` 只控制**结束时的回落**，不控制切入。默认 80 毫秒只是为了避免生硬跳回；
+想要完全瞬时，把它设为 `0`。
 
 **最终偏移量**：
 
@@ -127,6 +145,7 @@ assets/<命名空间>/mineturn/animation_camera.json
 | 大怪物太近、糊一脸 | 增大 `width_scale`（让宽体被推得更远） |
 | 高个子生物被切头 | 增大 `lift` |
 | 镜头插进目标模型里 | 增大 `min_distance` |
+| 结束回落太生硬 / 还嫌晃 | 调 `blend_out_ms`；想要瞬时回弹设为 `0` |
 | 贴墙时镜头卡墙 | 无需配置：机位落入方块时会自动沿视线夹到遮挡前 |
 | 进食/饮用镜头太近、看不清 | 增大 `side` 或 `min_distance` |
 

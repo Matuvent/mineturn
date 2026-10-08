@@ -260,9 +260,9 @@ record ActionAnimation(
 ### 12.3 客户端 `ActionAnimations`（对标 `ProjectileAnimations`）
 
 - `receive(packet)`：校验 + 按 `battleId + sequence` 去重
-- `noteFreeCamera(pose)`：由混入层每帧回填当前真实机位，供推入起点与回落目标使用
 - `cameraPose()`：返回 `null` 表示无演出，否则返回**绝对世界坐标 + 锁定朝向**的固定机位
-  - 推入 250ms（从当前自由机位缓动到固定机位）→ 保持 → 释放 180ms 回到自由机位
+  - **切入为硬切，无过渡**（早期 250ms 推入会让镜头绕人晃，已移除）
+  - 结束时按规则的 `blend_out_ms` 回落（默认 80ms，`0` = 瞬时）
 - 换世界 / 战斗关闭 / 退出战斗清空
 
 ### 12.4 `BattleCameraMixin` 改造
@@ -304,8 +304,8 @@ if (pose != null) { setPosition(pose.position()); setRotation(pose.yaw(), pose.p
 
 - `network/BattleNetwork.java`：新增 `ActionAnimation` payload（battle/sequence/animationId/actorId/targetId/impact/hasImpact）+ `idFor(effect)` 映射；协议 **20 → 21**
 - `battle/BattleSession.java`：新增 `actionSequence` 与 `broadcastActionAnimation`，在 `runEffect` 结算后向本场所有玩家广播
-- `client/ActionAnimations.java`：单演出播放器。按行动者自身朝向算出**固定机位**（正前方 + 右方偏移），锁定看向目标；推入 250ms → 保持 → 释放 180ms；机位落入方块时沿视线夹取；按 battleId 去重、换世界清理
-- `client/ActionAnimationData.java`：**数据包可配的机位规则**，从 `assets/<ns>/mineturn/animation_camera.json` 加载，客户端资源重载（含 `/reload`）即刷新；解析失败记日志并回落内置默认
+- `client/ActionAnimations.java`：单演出播放器。按行动者自身朝向算出**固定机位**（正前方 + 右方偏移），锁定看向目标；**切入硬切**、结束按 `blend_out_ms` 回落；机位落入方块时沿视线夹取；按 battleId 去重、换世界清理
+- `client/ActionAnimationData.java`：**资源包可配的机位规则**，从 `assets/<ns>/mineturn/animation_camera.json` 加载，客户端资源重载即刷新；**解析失败时保留上一套已生效规则**（早期实现会在此清空整张表，已修）
 - `mixin/BattleCameraMixin.java`：回填当前真实机位 + 优先采用演出的绝对坐标与朝向
 - `client/BattleClient.java`：接线 `receiveActionAnimation` + 注册资源重载监听器 + 战斗退出时 `clear()`
 - 测试：`ActionAnimation` 编解码往返 + `idFor` 映射断言；全量 **297/297 通过**

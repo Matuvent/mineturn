@@ -20,11 +20,12 @@ import java.util.Map;
 public final class ActionAnimationData extends SimpleJsonResourceReloadListener {
     /**
      * One framing rule. {@code side}/{@code front} are absolute blocks added on top of the collision-box
-     * term, {@code widthBase}/{@code widthScale} define that term, {@code lift} raises the camera and
-     * {@code minDistance} is a floor measured along the sight line to the aim point.
+     * term, {@code widthBase}/{@code widthScale} define that term, {@code lift} raises the camera,
+     * {@code minDistance} is a floor measured along the sight line to the aim point, and
+     * {@code blendOutMs} is how long the release back to the free camera takes (0 snaps instantly).
      */
-    public record Camera(double side, double front, double lift, double widthBase, double widthScale, double minDistance) {
-        public static final Camera DEFAULT = new Camera(1.25, 1.0, 0.4, 1.2, 0.9, 1.8);
+    public record Camera(double side, double front, double lift, double widthBase, double widthScale, double minDistance, double blendOutMs) {
+        public static final Camera DEFAULT = new Camera(1.25, 1.0, 0.4, 1.2, 0.9, 1.8, 80);
         /** Collision-box term for this rule; final offsets are {@code side + this} / {@code front + this}. */
         public double scaleFor(double bbWidth) { return widthBase + Math.max(0.0, bbWidth) * widthScale; }
     }
@@ -65,14 +66,22 @@ public final class ActionAnimationData extends SimpleJsonResourceReloadListener 
     @Override
     protected void apply(Map<ResourceLocation, JsonElement> files, ResourceManager resources, ProfilerFiller profiler) {
         var parsed = new java.util.HashMap<String, Camera>();
+        boolean rejected = false;
         for (var entry : files.entrySet()) {
             try {
                 var file = parseFile(entry.getValue());
                 if (file.camera() != null) parsed.put(entry.getKey().toString(), file.camera());
                 parsed.putAll(file.actions());
             } catch (RuntimeException error) {
+                rejected = true;
                 com.matuvent.mineturn.MineTurn.LOGGER.error("Invalid animation camera file {}: {}", entry.getKey(), error.getMessage());
             }
+        }
+        // A rejected file must not replace the working rules with a half-parsed or empty set: that would
+        // silently wipe every camera preset instead of falling back.
+        if (rejected) {
+            com.matuvent.mineturn.MineTurn.LOGGER.error("Keeping the previous {} animation camera rules because a file was rejected", cameras.size());
+            return;
         }
         cameras = Map.copyOf(parsed);
         com.matuvent.mineturn.MineTurn.LOGGER.info("MineTurn animation camera rules: {}", cameras.size());
@@ -90,23 +99,32 @@ public final class ActionAnimationData extends SimpleJsonResourceReloadListener 
         return new FileEntry(camera, actions);
     }
 
+    /**
+     * Parse one camera object without touching the installed table. Used by tests to exercise field
+     * validation and range limits in isolation.
+     */
+    public static Camera parseCamera(JsonElement element) {
+        return new ActionAnimationData().readCamera(element.getAsJsonObject());
+    }
+
     /** Reads a camera object, filling every omitted field from {@link Camera#DEFAULT}. */
     private Camera readCamera(com.google.gson.JsonObject object) {
         var base = Camera.DEFAULT;
         return new Camera(
-                number(object, "side", base.side()),
-                number(object, "front", base.front()),
-                number(object, "lift", base.lift()),
-                number(object, "width_base", base.widthBase()),
-                number(object, "width_scale", base.widthScale()),
-                number(object, "min_distance", base.minDistance()));
+                number(object, "side", base.side(), 64),
+                number(object, "front", base.front(), 64),
+                number(object, "lift", base.lift(), 64),
+                number(object, "width_base", base.widthBase(), 64),
+                number(object, "width_scale", base.widthScale(), 64),
+                number(object, "min_distance", base.minDistance(), 64),
+                number(object, "blend_out_ms", base.blendOutMs(), 2000));
     }
 
-    private static double number(com.google.gson.JsonObject object, String key, double fallback) {
+    private static double number(com.google.gson.JsonObject object, String key, double fallback, double maximum) {
         if (!object.has(key)) return fallback;
         double value = object.get(key).getAsDouble();
-        if (!Double.isFinite(value) || value < 0 || value > 64) {
-            throw new IllegalArgumentException(key + " must be a finite number in 0..64");
+        if (!Double.isFinite(value) || value < 0 || value > maximum) {
+            throw new IllegalArgumentException(key + " must be a finite number in 0.." + (int) maximum);
         }
         return value;
     }

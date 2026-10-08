@@ -1,12 +1,13 @@
 {
-  "__comment": "Action camera framing. Offsets are added on top of a collision-box term: final offset = value + width_base + bbWidth * width_scale. All lengths are in blocks.",
+  "__comment": "Action camera framing. The cut to the skill camera is instant; blend_out_ms only controls the release back to the free camera. Offsets are added on top of a collision-box term: final offset = value + width_base + bbWidth * width_scale. Lengths are in blocks, blend_out_ms in milliseconds (0 = instant).",
   "camera": {
     "side": 0.85,
     "front": 0.85,
     "lift": 0.45,
     "width_base": 1.15,
     "width_scale": 0.9,
-    "min_distance": 2.2
+    "min_distance": 2.2,
+    "blend_out_ms": 80
   },
   "actions": {
     "melee": {

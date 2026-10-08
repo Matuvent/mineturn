@@ -60,4 +60,55 @@ public final class ActionAnimationDataGameTests {
         h.assertTrue(melee.scaleFor(0.0) < melee.scaleFor(4.0), "Collision-box term ignored actor width");
         h.succeed();
     }
+
+    /**
+     * The cut to the skill camera is instant; only the release is blended, and its duration is
+     * configurable so a resource pack can make the return instant as well.
+     */
+    @GameTest(template = "empty")
+    public static void blendOutDurationIsConfigurableAndValidated(GameTestHelper h) {
+        int rules = loadShipped();
+        var melee = ActionAnimationData.camera(ResourceLocation.parse("mineturn:melee"));
+        h.assertTrue(rules >= 6, "Shipped file should define the full preset set: " + rules
+                + " keys=" + ActionAnimationData.installedKeys());
+        h.assertTrue(melee.blendOutMs() > 0 && melee.blendOutMs() <= 2000,
+                "Shipped release blend is out of range: " + melee.blendOutMs());
+        h.assertTrue(ActionAnimationData.Camera.DEFAULT.blendOutMs() > 0,
+                "Built-in default should still blend the release");
+
+        // Zero is legal and means "release instantly".
+        ActionAnimationData.installFromFiles(java.util.Map.of(FILE, JsonParser.parseString(
+                "{\"actions\":{\"melee\":{\"blend_out_ms\":0}}}")));
+        h.assertTrue(ActionAnimationData.camera(ResourceLocation.parse("mineturn:melee")).blendOutMs() == 0,
+                "blend_out_ms 0 was not accepted as an instant release");
+
+        // Field validation is exercised directly so the check does not depend on install order.
+        h.assertTrue(ActionAnimationData.parseCamera(JsonParser.parseString("{}")).equals(ActionAnimationData.Camera.DEFAULT),
+                "An empty rule did not fall back to the built-in default");
+        h.assertTrue(ActionAnimationData.parseCamera(JsonParser.parseString("{\"blend_out_ms\":0}")).blendOutMs() == 0,
+                "blend_out_ms 0 was rejected by the parser");
+        h.assertTrue(ActionAnimationData.parseCamera(JsonParser.parseString("{\"blend_out_ms\":2000}")).blendOutMs() == 2000,
+                "The maximum blend_out_ms was rejected by the parser");
+        for (String bad : java.util.List.of("{\"blend_out_ms\":-5}", "{\"blend_out_ms\":2001}",
+                "{\"side\":99999}", "{\"front\":-1}")) {
+            boolean rejected = false;
+            try {
+                ActionAnimationData.parseCamera(JsonParser.parseString(bad));
+            } catch (RuntimeException expected) {
+                rejected = true;
+            }
+            h.assertTrue(rejected, "Out-of-range camera rule was accepted: " + bad);
+        }
+
+        // A file that fails validation must not replace the working table with an empty one.
+        var meleeBefore = ActionAnimationData.camera(ResourceLocation.parse("mineturn:melee"));
+        ActionAnimationData.installFromFiles(java.util.Map.of(FILE, JsonParser.parseString(
+                "{\"actions\":{\"melee\":{\"side\":99999}}}")));
+        h.assertTrue(ActionAnimationData.camera(ResourceLocation.parse("mineturn:melee")).equals(meleeBefore),
+                "A rejected file wiped or changed the installed rules instead of being discarded");
+
+        // Restore the shipped file so later tests and the client see the real configuration.
+        loadShipped();
+        h.succeed();
+    }
 }

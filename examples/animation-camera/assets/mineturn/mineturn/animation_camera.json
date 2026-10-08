@@ -6,7 +6,8 @@
     "lift": 0.5,
     "width_base": 1.35,
     "width_scale": 1.0,
-    "min_distance": 2.6
+    "min_distance": 2.6,
+    "blend_out_ms": 120
   },
   "actions": {
     "melee": {

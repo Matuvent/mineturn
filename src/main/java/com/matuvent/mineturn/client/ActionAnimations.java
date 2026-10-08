@@ -11,15 +11,19 @@ import net.minecraft.world.phys.Vec3;
  * Client-side action performance player. It owns one running performance plus a single pending slot and
  * exposes a fixed camera pose for {@link com.matuvent.mineturn.mixin.BattleCameraMixin}: the camera is
  * placed at a world-space offset relative to the actor (mirroring a Star Rail style skill cut), aimed at
- * the target, pushed in and released with a short blend.
+ * the target, cut to instantly and released with a short blend.
  *
  * <p>Preemption is delegated to {@link ActionAnimationOrder}: attacks interrupt, minor actions wait.
  */
 public final class ActionAnimations {
     /** Fully resolved camera state: world position plus the look direction toward the aim point. */
     public record CameraPose(Vec3 position, float yaw, float pitch) {}
-    private static final double BLEND_IN_MS=250;
-    private static final double BLEND_OUT_MS=180;
+    /**
+     * Release blend back to the free camera. Kept short on purpose: a slow push-in or a long return
+     * reads as the camera swinging around and is unpleasant to play with. The cut itself is instant.
+     * Resource packs can override this through {@code blend_out_ms}.
+     */
+    private static final double DEFAULT_BLEND_OUT_MS=80;
 
     private static final ActionAnimationOrder order=new ActionAnimationOrder();
     private static Playback playback;
@@ -27,7 +31,8 @@ public final class ActionAnimations {
     private static CameraPose blendOutFrom;
     private static CameraPose blendOutTo;
     private static long blendOutStart;
-    private static CameraPose liveCamera;
+    /** Captured at release time; the playback record is cleared by then. */
+    private static double blendOutMs=DEFAULT_BLEND_OUT_MS;
     private static java.util.UUID lastBattle;
     private static net.minecraft.client.multiplayer.ClientLevel world;
 
@@ -38,11 +43,15 @@ public final class ActionAnimations {
 
     private ActionAnimations(){}
 
-    private record Playback(ResourceLocation id, long started, long durationMs, CameraPose from, CameraPose hold) {}
+    /** The instant cut plus how long the release blend back to the free camera lasts. */
+    private record Playback(ResourceLocation id, long started, long durationMs, CameraPose hold, double blendOutMs) {}
     private record Queued(BattleNetwork.ActionAnimation packet, CameraPose hold) {}
 
-    /** Recorded every frame by the camera mixin so a cut can push in from wherever the player was. */
-    public static void noteFreeCamera(CameraPose pose){liveCamera=pose;}
+    /**
+     * Called every frame by the camera mixin. The live pose is not needed any more now that the cut is
+     * instant, but the hook is kept so the camera module stays the single owner of that state.
+     */
+    public static void noteFreeCamera(CameraPose pose){ }
 
     public static void receive(BattleNetwork.ActionAnimation packet){
         var mc=Minecraft.getInstance();var level=mc.level;var player=mc.player;
@@ -57,16 +66,19 @@ public final class ActionAnimations {
         }
     }
 
-    /** Starts a performance immediately, pushing in from the live camera. */
+    /** Snaps straight to the skill framing. There is deliberately no push-in. */
     private static void play(BattleNetwork.ActionAnimation packet){
         var level=Minecraft.getInstance().level;
         if(level==null)return;
         if(!(level.getEntity(packet.actorId()) instanceof LivingEntity actor))return;
-        var hold=computeHold(level,packet.animationId(),actor,pickAim(level,packet,actor));
+        var framing=computeHold(level,packet.animationId(),actor,pickAim(level,packet,actor));
         blendOutFrom=null;blendOutTo=null;
         playback=new Playback(packet.animationId(),System.nanoTime(),durationFor(packet.animationId()),
-                liveCamera!=null?liveCamera:hold,hold);
+                framing.pose(),framing.blendOutMs());
     }
+
+    /** Resolved framing plus the release duration, sampled once when the performance starts. */
+    private record Framing(CameraPose pose, double blendOutMs) {}
 
     /** Self-targeted actions aim at the actor's own face; everything else aims at the target. */
     private static LivingEntity pickAim(net.minecraft.client.multiplayer.ClientLevel level,BattleNetwork.ActionAnimation packet,LivingEntity actor){
@@ -88,7 +100,7 @@ public final class ActionAnimations {
      * facing so the framing reads the same regardless of world yaw, and grow with the actor's collision
      * box so large mobs do not swallow the frame.
      */
-    private static CameraPose computeHold(net.minecraft.client.multiplayer.ClientLevel level,ResourceLocation id,LivingEntity actor,LivingEntity aim){
+    private static Framing computeHold(net.minecraft.client.multiplayer.ClientLevel level,ResourceLocation id,LivingEntity actor,LivingEntity aim){
         double yaw=Math.toRadians(actor.getYRot());
         Vec3 forward=new Vec3(-Math.sin(yaw),0,Math.cos(yaw));
         Vec3 right=new Vec3(Math.cos(yaw),0,-Math.sin(yaw));
@@ -103,7 +115,7 @@ public final class ActionAnimations {
         // First keep the frame clear of the target, then clamp it out of any wall on the sight line.
         Vec3 spaced=setBack(wanted,eye,rule.minDistance());
         Vec3 position=clearSight(level,spaced,eye,actor);
-        return poseLookAt(position,eye);
+        return new Framing(poseLookAt(position,eye),rule.blendOutMs());
     }
 
     /** Back the camera off along the sight line if the framing step placed it too close to the aim point. */
@@ -141,7 +153,7 @@ public final class ActionAnimations {
         long now=System.nanoTime();
         if(playback==null){
             if(blendOutTo==null)return null;
-            double b=Math.clamp((now-blendOutStart)/1_000_000.0/BLEND_OUT_MS,0,1);
+            double b=blendOutMs<=0?1:Math.clamp((now-blendOutStart)/1_000_000.0/blendOutMs,0,1);
             if(b<1)return blend(blendOutFrom,blendOutTo,b);
             blendOutFrom=null;blendOutTo=null;
             // A queued performance takes over once the release finished, so the camera never snaps free
@@ -157,13 +169,12 @@ public final class ActionAnimations {
             blendOutFrom=playback.hold();
             blendOutTo=freeCamera();
             blendOutStart=now;
+            blendOutMs=playback.blendOutMs();
             playback=null;
             return blendOutFrom;
         }
-        if(elapsedMs<BLEND_IN_MS){
-            double ease=0.5-0.5*Math.cos(Math.PI*elapsedMs/BLEND_IN_MS);
-            return blend(playback.from(),playback.hold(),ease);
-        }
+        // Hold the cut flat for the whole performance: any interpolation here reads as the camera
+        // swinging around, which is what made this unpleasant to play.
         return playback.hold();
     }
 
