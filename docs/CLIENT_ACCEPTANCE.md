@@ -5,13 +5,56 @@
 > **本文件不宣称任何项目已通过。** 所有条目的初始状态均为 `未测`。
 > 请按实际结果填写「结果」列与「记录」列；失败项另开一行说明并附日志。
 
+---
+
+## 为什么必须有这份表（一次真实事故）
+
+`gradlew runGameTestServer` 是**专用服务端**，**永远不会构造 `client/BattleClient`**。
+因此 `BattleClient` 构造函数里的**每一行注册**（渲染器、资源重载监听器、tick/input/hud 注册）
+在服务器测试里都是**零覆盖**，而且**编译期毫无提示**。
+
+实际发生过：把 mod bus 事件 `RegisterClientReloadListenersEvent` 注册到 `NeoForge.EVENT_BUS`
+（游戏总线）后，编译通过、**服务器测试全绿**，但客户端一启动就崩：
+
+```
+Failed to create mod instance. ModID: mineturn, class ...client.BattleClient
+java.lang.IllegalArgumentException: IModBusEvent events are not allowed on the common NeoForge bus!
+    at ...client.BattleClient.<init>(BattleClient.java:66)
+```
+
+崩溃本身只是一条异常，真正的代价是它会引发**满屏连锁错误**
+（`Cowardly refusing to send event ... to a broken mod state`），
+把真正的原因淹没在噪音里，让人误以为是渲染或资源问题。
+
+**结论（强制）**：
+
+> **任何改动 `src/main/java/com/matuvent/mineturn/client/` 下文件的提交，都必须真实启动一次客户端后才算验证完成。**
+> **`runGameTestServer` 通过 不构成**对客户端改动的任何验证。
+
+---
+
+## G0：准入门禁（改动 client/ 时**必做**，否则后续所有条目无意义）
+
+| # | 步骤 | 预期 | 结果 | 日期 | 记录 |
+| --- | --- | --- | --- | --- | --- |
+| G0.1 | `gradlew runClient` 启动到主菜单并进入一个世界 | 能正常启动；**没有** `Failed to create mod instance`；**没有** `broken mod state` | 未测 | | |
+| G0.2 | 在日志中搜索 `Cowardly refusing to send event` | **一条都没有**。出现任意一条即说明 mod 构造已失败，必须先修总线注册 | 未测 | | |
+| G0.3 | 在日志中搜索 `Failed to create mod instance` / `IModBusEvent` | **一条都没有** | 未测 | | |
+| G0.4 | 在日志中取一次 `MineTurn animation camera rules: N` | 出现且 `N ≥ 5`（根 camera + melee/eat/ranged/generic）。**这一行不出现，说明 `animation_camera.json` 根本没被加载**，则「机位可配」功能等于未生效 | ✅ 已通过（2026-10-08） | 2026-10-08 | 用户实测：客户端正常启动，该行出现 |
+| G0.5 | 改动过 `assets/mineturn/mineturn/animation_camera.json` 时，改一个明显数值再进游戏 | 机位按新数值变化；写坏 JSON 时记录错误但**不崩**（回落内置默认） | 未测 | | |
+
+> G0.4 已由用户实测确认。G0.1–G0.3、G0.5 仍为 `未测`，下次改客户端时补。
+
+---
+
 ## 怎么用
 
-1. 每项按「步骤」操作，对照「预期」判断。
-2. 填写 `结果`：`通过` / `失败` / `部分` / `未测` / `不适用`。
-3. 「记录」写实际观察：截图名、日志片段、`run/` 路径、复现次数。
-4. **不要**因为"代码看起来对"就填通过；只有真实看到才算。
-5. 失败或部分通过时，在文末「问题清单」登记，交由对应负责人处理。
+1. **先过 G0 门禁**，再做下面的条目。
+2. 每项按「步骤」操作，对照「预期」判断。
+3. 填写 `结果`：`通过` / `失败` / `部分` / `未测` / `不适用`。
+4. 「记录」写实际观察：截图名、日志片段、`run/` 路径、复现次数。
+5. **不要**因为"代码看起来对"就填通过；只有真实看到才算。
+6. 失败或部分通过时，在文末「问题清单」登记，交由对应负责人处理。
 
 ### 记录字段说明
 
