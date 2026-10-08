@@ -1,54 +1,60 @@
 {
-  "__comment": "MineTurn 动作技能镜头示例（资源包）。安装后本文件会覆盖模组自带的 assets/mineturn/mineturn/animation_camera.json：同命名空间同路径，资源包优先级更高者胜。数值刻意与默认值不同，便于一眼确认是否生效。字段含义见 docs/ACTION_CAMERA_CONFIG.md。",
+  "__comment": "MineTurn 动作技能镜头示例（资源包）。安装后本文件会覆盖模组自带的 assets/mineturn/mineturn/animation_camera.json：同命名空间同路径，资源包优先级更高者胜。数值刻意与默认值不同，便于一眼确认是否生效。front 为负 = 镜头在角色身后（过肩）。字段含义见 docs/ACTION_CAMERA_CONFIG.md。",
   "camera": {
-    "side": 1.1,
-    "front": 1.1,
-    "lift": 0.5,
-    "width_base": 1.35,
-    "width_scale": 1.0,
-    "min_distance": 2.6,
-    "blend_out_ms": 120
+    "side": 1.15,
+    "front": -2.1,
+    "lift": 0.9,
+    "width_base": 0.55,
+    "width_scale": 0.55,
+    "min_distance": 1.7,
+    "blend_out_ms": 120,
+    "aim": "midpoint"
   },
   "actions": {
     "melee": {
       "side": 1.25,
-      "front": 1.15,
-      "lift": 0.5,
-      "width_base": 1.4,
-      "width_scale": 1.0,
-      "min_distance": 2.8
-    },
-    "eat": {
-      "side": 0.8,
-      "front": 0.5,
-      "lift": 0.3,
-      "width_base": 1.2,
-      "width_scale": 0.9,
-      "min_distance": 1.9
-    },
-    "drink": {
-      "side": 0.85,
-      "front": 0.45,
-      "lift": 0.35,
-      "width_base": 1.2,
-      "width_scale": 0.9,
-      "min_distance": 2.0
+      "front": -2.2,
+      "lift": 0.95,
+      "width_base": 0.55,
+      "width_scale": 0.55,
+      "min_distance": 1.8,
+      "aim": "midpoint"
     },
     "ranged": {
-      "side": 0.95,
-      "front": 1.15,
-      "lift": 0.55,
-      "width_base": 1.5,
-      "width_scale": 1.0,
-      "min_distance": 3.0
+      "side": 1.05,
+      "front": -2.4,
+      "lift": 1.05,
+      "width_base": 0.55,
+      "width_scale": 0.55,
+      "min_distance": 1.9,
+      "aim": "target"
     },
-    "generic": {
-      "side": 1.1,
+    "eat": {
+      "side": 0.9,
       "front": 1.1,
       "lift": 0.5,
-      "width_base": 1.35,
-      "width_scale": 1.0,
-      "min_distance": 2.6
+      "width_base": 0.45,
+      "width_scale": 0.45,
+      "min_distance": 1.7,
+      "aim": "actor"
+    },
+    "drink": {
+      "side": 0.95,
+      "front": 1.1,
+      "lift": 0.55,
+      "width_base": 0.45,
+      "width_scale": 0.45,
+      "min_distance": 1.7,
+      "aim": "actor"
+    },
+    "generic": {
+      "side": 1.15,
+      "front": -2.1,
+      "lift": 0.9,
+      "width_base": 0.55,
+      "width_scale": 0.55,
+      "min_distance": 1.7,
+      "aim": "midpoint"
     }
   }
 }

@@ -19,16 +19,22 @@ import java.util.Map;
  */
 public final class ActionAnimationData extends SimpleJsonResourceReloadListener {
     /**
-     * One framing rule. {@code side}/{@code front} are absolute blocks added on top of the collision-box
-     * term, {@code widthBase}/{@code widthScale} define that term, {@code lift} raises the camera,
-     * {@code minDistance} is a floor measured along the sight line to the aim point, and
+     * One framing rule. {@code side} offsets the camera to the actor's right and {@code front} along its
+     * facing, where a negative {@code front} places the camera behind the actor (an over-the-shoulder
+     * shot) and a positive one in front of it. {@code widthBase}/{@code widthScale} scale both offsets
+     * with the actor's collision box, {@code lift} raises the camera, {@code minDistance} is a floor
+     * measured along the sight line to the aim point, {@code aim} selects what the camera looks at, and
      * {@code blendOutMs} is how long the release back to the free camera takes (0 snaps instantly).
      */
-    public record Camera(double side, double front, double lift, double widthBase, double widthScale, double minDistance, double blendOutMs) {
-        public static final Camera DEFAULT = new Camera(1.25, 1.0, 0.4, 1.2, 0.9, 1.8, 80);
+    public record Camera(double side, double front, double lift, double widthBase, double widthScale,
+                         double minDistance, double blendOutMs, Aim aim) {
+        public static final Camera DEFAULT = new Camera(0.9, -1.6, 0.8, 0.5, 0.5, 1.6, 80, Aim.MIDPOINT);
         /** Collision-box term for this rule; final offsets are {@code side + this} / {@code front + this}. */
         public double scaleFor(double bbWidth) { return widthBase + Math.max(0.0, bbWidth) * widthScale; }
     }
+
+    /** What the camera points at once it holds the skill framing. */
+    public enum Aim { ACTOR, TARGET, MIDPOINT }
 
     private record FileEntry(Camera camera, Map<String, Camera> actions) {}
 
@@ -112,12 +118,34 @@ public final class ActionAnimationData extends SimpleJsonResourceReloadListener 
         var base = Camera.DEFAULT;
         return new Camera(
                 number(object, "side", base.side(), 64),
-                number(object, "front", base.front(), 64),
+                signed(object, "front", base.front(), 64),
                 number(object, "lift", base.lift(), 64),
                 number(object, "width_base", base.widthBase(), 64),
                 number(object, "width_scale", base.widthScale(), 64),
                 number(object, "min_distance", base.minDistance(), 64),
-                number(object, "blend_out_ms", base.blendOutMs(), 2000));
+                number(object, "blend_out_ms", base.blendOutMs(), 2000),
+                aim(object, base.aim()));
+    }
+
+    private static Aim aim(com.google.gson.JsonObject object, Aim fallback) {
+        if (!object.has("aim")) return fallback;
+        var text = object.get("aim").getAsString().toLowerCase(java.util.Locale.ROOT);
+        return switch (text) {
+            case "actor" -> Aim.ACTOR;
+            case "target" -> Aim.TARGET;
+            case "midpoint", "between" -> Aim.MIDPOINT;
+            default -> throw new IllegalArgumentException("aim must be actor, target or midpoint, got: " + text);
+        };
+    }
+
+    /** Like {@link #number} but accepts negatives, for offsets such as {@code front} that may go behind. */
+    private static double signed(com.google.gson.JsonObject object, String key, double fallback, double maximum) {
+        if (!object.has(key)) return fallback;
+        double value = object.get(key).getAsDouble();
+        if (!Double.isFinite(value) || Math.abs(value) > maximum) {
+            throw new IllegalArgumentException(key + " must be a finite number in -" + (int) maximum + ".." + (int) maximum);
+        }
+        return value;
     }
 
     private static double number(com.google.gson.JsonObject object, String key, double fallback, double maximum) {

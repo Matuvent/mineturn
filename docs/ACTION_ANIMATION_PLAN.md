@@ -276,8 +276,9 @@ if (pose != null) { setPosition(pose.position()); setRotation(pose.yaw(), pose.p
 // 无演出：现有自由轨道镜头
 ```
 
-**关键**：固定机位是**绝对世界坐标 + 锁定朝向**，不是"只改聚焦点和距离"。
-镜头按行动者自身朝向计算偏移（正前方 + 右方各约 1 格），并锁定看向目标，
+**关键**：机位是**绝对世界坐标 + 锁定朝向**，不是"只改聚焦点和距离"。
+镜头按行动者自身朝向计算偏移：**右方 `side`、沿朝向 `front`（负值即身后）**，
+过肩构图下约为**右 1.25 格、后 1.4 格**，并看向行动者与目标之间，使两者同时入画，
 等价于崩铁放技能时的技能机位；若机位落入方块，会沿视线夹取到遮挡前。
 
 ### 12.5 行动者近似（P1，非 P0）
@@ -304,7 +305,7 @@ if (pose != null) { setPosition(pose.position()); setRotation(pose.yaw(), pose.p
 
 - `network/BattleNetwork.java`：新增 `ActionAnimation` payload（battle/sequence/animationId/actorId/targetId/impact/hasImpact）+ `idFor(effect)` 映射；协议 **20 → 21**
 - `battle/BattleSession.java`：新增 `actionSequence` 与 `broadcastActionAnimation`，在 `runEffect` 结算后向本场所有玩家广播
-- `client/ActionAnimations.java`：单演出播放器。按行动者自身朝向算出**固定机位**（正前方 + 右方偏移），锁定看向目标；**切入硬切**、结束按 `blend_out_ms` 回落；机位落入方块时沿视线夹取；按 battleId 去重、换世界清理
+- `client/ActionAnimations.java`：单演出播放器。按行动者自身朝向算出**过肩机位**（**右后方**，即 `front` 取负），并越过肩膀看向行动者与目标之间（`aim`），使两者同时入画；**切入硬切**、结束按 `blend_out_ms` 回落；机位落入方块时沿视线夹取；按 battleId 去重、换世界清理
 - `client/ActionAnimationData.java`：**资源包可配的机位规则**，从 `assets/<ns>/mineturn/animation_camera.json` 加载，客户端资源重载即刷新；**解析失败时保留上一套已生效规则**（早期实现会在此清空整张表，已修）
 - `mixin/BattleCameraMixin.java`：回填当前真实机位 + 优先采用演出的绝对坐标与朝向
 - `client/BattleClient.java`：接线 `receiveActionAnimation` + 注册资源重载监听器 + 战斗退出时 `clear()`

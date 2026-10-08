@@ -51,6 +51,16 @@ public final class ActionAnimationDataGameTests {
         h.assertTrue(melee.minDistance() >= 1.5 && melee.side() >= 0.4,
                 "Camera framing defaults are implausibly tight: " + melee);
 
+        // Over-the-shoulder: the camera sits BEHIND the actor, so front must be negative, and the frame
+        // aims between the two bodies so both are visible.
+        h.assertTrue(melee.front() < 0, "Melee camera is not behind the actor: front=" + melee.front());
+        h.assertTrue(melee.aim() == ActionAnimationData.Aim.MIDPOINT,
+                "Melee camera does not aim between actor and target: " + melee.aim());
+        h.assertTrue(eat.front() > 0 && eat.aim() == ActionAnimationData.Aim.ACTOR,
+                "Self-targeted camera should sit in front and look at the actor: " + eat);
+        h.assertTrue(ranged.front() < 0,
+                "Ranged camera is not behind the actor: front=" + ranged.front());
+
         // A normal mob must be framed further out than the old fixed 1-block offset, and a wide boss
         // must be pushed further still.
         double normal = melee.side() + melee.scaleFor(0.6);
@@ -89,8 +99,21 @@ public final class ActionAnimationDataGameTests {
                 "blend_out_ms 0 was rejected by the parser");
         h.assertTrue(ActionAnimationData.parseCamera(JsonParser.parseString("{\"blend_out_ms\":2000}")).blendOutMs() == 2000,
                 "The maximum blend_out_ms was rejected by the parser");
+        // front is signed on purpose: negative places the camera behind the actor (over-the-shoulder).
+        h.assertTrue(ActionAnimationData.parseCamera(JsonParser.parseString("{\"front\":-2.5}")).front() == -2.5,
+                "A negative front was rejected even though it means behind the actor");
+        h.assertTrue(ActionAnimationData.parseCamera(JsonParser.parseString("{\"front\":2.5}")).front() == 2.5,
+                "A positive front was rejected");
+        h.assertTrue(ActionAnimationData.parseCamera(JsonParser.parseString("{\"aim\":\"TARGET\"}")).aim()
+                        == ActionAnimationData.Aim.TARGET,
+                "aim is not case-insensitive");
+        h.assertTrue(ActionAnimationData.parseCamera(JsonParser.parseString("{\"aim\":\"between\"}")).aim()
+                        == ActionAnimationData.Aim.MIDPOINT,
+                "The 'between' alias for midpoint was not accepted");
+
         for (String bad : java.util.List.of("{\"blend_out_ms\":-5}", "{\"blend_out_ms\":2001}",
-                "{\"side\":99999}", "{\"front\":-1}")) {
+                "{\"side\":99999}", "{\"side\":-1}", "{\"front\":99999}", "{\"aim\":\"nonsense\"}",
+                "{\"aim\":\"\"}")) {
             boolean rejected = false;
             try {
                 ActionAnimationData.parseCamera(JsonParser.parseString(bad));

@@ -100,6 +100,13 @@ public final class ActionAnimations {
      * facing so the framing reads the same regardless of world yaw, and grow with the actor's collision
      * box so large mobs do not swallow the frame.
      */
+    /**
+     * Frame the action as an over-the-shoulder shot: the camera sits behind and to the right of the
+     * actor and looks past it toward the aim point, so actor and target share the frame. Offsets come
+     * from {@link ActionAnimationData} (resource-pack tunable) and are expressed in the actor's own
+     * facing, so the framing reads the same regardless of world yaw. Both offsets grow with the actor's
+     * collision box so large mobs do not swallow the frame.
+     */
     private static Framing computeHold(net.minecraft.client.multiplayer.ClientLevel level,ResourceLocation id,LivingEntity actor,LivingEntity aim){
         double yaw=Math.toRadians(actor.getYRot());
         Vec3 forward=new Vec3(-Math.sin(yaw),0,Math.cos(yaw));
@@ -110,12 +117,17 @@ public final class ActionAnimations {
         double side=rule.side()+scale, front=rule.front()+scale;
         double lift=rule.lift()+actor.getBbHeight()*0.05;
         Vec3 base=actor.position().add(0,actor.getEyeHeight()*0.7,0);
-        Vec3 eye=aim.getEyePosition();
+        // Over-the-shoulder framing aims between the two bodies; self-targeted actions look at the actor.
+        Vec3 look=switch(rule.aim()){
+            case ACTOR -> actor.getEyePosition();
+            case TARGET -> aim.getEyePosition();
+            case MIDPOINT -> actor.getEyePosition().lerp(aim.getEyePosition(),0.5);
+        };
         Vec3 wanted=base.add(forward.scale(front)).add(right.scale(side)).add(0,lift,0);
-        // First keep the frame clear of the target, then clamp it out of any wall on the sight line.
-        Vec3 spaced=setBack(wanted,eye,rule.minDistance());
-        Vec3 position=clearSight(level,spaced,eye,actor);
-        return new Framing(poseLookAt(position,eye),rule.blendOutMs());
+        // First keep the frame clear of the subject, then clamp it out of any wall on the sight line.
+        Vec3 spaced=setBack(wanted,look,rule.minDistance());
+        Vec3 position=clearSight(level,spaced,look,actor);
+        return new Framing(poseLookAt(position,look),rule.blendOutMs());
     }
 
     /** Back the camera off along the sight line if the framing step placed it too close to the aim point. */
