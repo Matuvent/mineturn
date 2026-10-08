@@ -63,7 +63,9 @@ public final class BattleClient {
         BattleNetwork.receiveState = BattleClient::receive;
         BattleNetwork.receiveProjectile=ProjectileAnimations::receive;
         BattleNetwork.receiveActionAnimation=ActionAnimations::receive;
-        NeoForge.EVENT_BUS.addListener((net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent event)->
+        // RegisterClientReloadListenersEvent is a mod-bus event, like the renderer registrations above;
+        // putting it on the game bus aborts mod construction on the client.
+        bus.addListener((net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent event)->
                 event.registerReloadListener(new ActionAnimationData()));
         NeoForge.EVENT_BUS.addListener((ClientTickEvent.Post event)->ProjectileAnimations.tick());
         NeoForge.EVENT_BUS.addListener(ProjectileAnimations::render);
