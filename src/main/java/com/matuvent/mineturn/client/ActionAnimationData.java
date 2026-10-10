@@ -20,16 +20,23 @@ import java.util.Map;
 public final class ActionAnimationData extends SimpleJsonResourceReloadListener {
     /**
      * One framing rule. {@code side} offsets the camera to the actor's right and {@code front} along its
-     * facing, where a negative {@code front} places the camera behind the actor (an over-the-shoulder
-     * shot) and a positive one in front of it. {@code widthBase}/{@code widthScale} scale both offsets
-     * with the actor's collision box, {@code lift} raises the camera, {@code minDistance} is a floor
-     * measured along the sight line to the aim point, {@code aim} selects what the camera looks at, and
-     * {@code blendOutMs} is how long the release back to the free camera takes (0 snaps instantly).
+     * facing, where a negative {@code front} places the camera behind the actor (an over-the-shoulder shot).
+     * {@code lift} raises the camera, {@code minDistance} is a floor measured along the sight line to the aim
+     * point, {@code aimDistance} is how far in front of the actor the camera looks, {@code aim} selects what
+     * it looks at, and {@code blendOutMs} is how long the release back to the free camera takes.
+     *
+     * <p>The camera offsets are deliberately independent of body size. An earlier revision scaled both of
+     * them by the collision box, which for a ravager (1.95 wide) added almost a block: the camera was pushed
+     * two blocks sideways and its backward offset was nearly cancelled, so the attacker left the frame
+     * entirely. Body size now only pushes the look-at point further ahead, which keeps a broad actor from
+     * filling the shot without moving the camera at all.
      */
     public record Camera(double side, double front, double lift, double widthBase, double widthScale,
-                         double minDistance, double blendOutMs, Aim aim) {
-        public static final Camera DEFAULT = new Camera(0.9, -1.6, 0.8, 0.5, 0.5, 1.6, 80, Aim.MIDPOINT);
-        /** Collision-box term for this rule; final offsets are {@code side + this} / {@code front + this}. */
+                         double minDistance, double aimDistance, double blendOutMs, Aim aim) {
+        public static final Camera DEFAULT =
+                new Camera(0.9, -1.6, 0.8, 0.0, 0.5, 1.6, 2.0, 0, Aim.MIDPOINT);
+
+        /** Extra look-ahead for broad actors; the camera itself is not displaced by body size. */
         public double scaleFor(double bbWidth) { return widthBase + Math.max(0.0, bbWidth) * widthScale; }
     }
 
@@ -123,6 +130,7 @@ public final class ActionAnimationData extends SimpleJsonResourceReloadListener 
                 number(object, "width_base", base.widthBase(), 64),
                 number(object, "width_scale", base.widthScale(), 64),
                 number(object, "min_distance", base.minDistance(), 64),
+                number(object, "aim_distance", base.aimDistance(), 64),
                 number(object, "blend_out_ms", base.blendOutMs(), 2000),
                 aim(object, base.aim()));
     }

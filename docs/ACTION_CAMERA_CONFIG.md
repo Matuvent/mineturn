@@ -63,9 +63,10 @@ Keeping the previous N animation camera rules because a file was rejected
 | `side` | 格 | 镜头相对行动者**右方**的偏移（始终非负） |
 | `front` | 格 | 镜头沿行动者**朝向**的偏移。**负值 = 在身后**（过肩），正值 = 在身前 |
 | `lift` | 格 | 镜头抬升高度 |
-| `width_base` | 格 | 碰撞箱项基数 |
-| `width_scale` | 倍 | 碰撞箱项系数，按实体宽度缩放 |
+| `width_base` | 格 | 瞄准点前移基数（**不影响机位**） |
+| `width_scale` | 倍 | 瞄准点前移系数，按实体宽度缩放（**不影响机位**） |
 | `min_distance` | 格 | 到瞄准点的**最小**距离（沿视线方向），防止镜头插进模型体内 |
+| `aim_distance` | 格 | 瞄准点在角色**前方**的基础距离；固定它可让构图不随目标远近变化 |
 | `aim` | 枚举 | 镜头看向什么：`actor`（行动者）\| `target`（目标）\| `midpoint`（两者之间，默认） |
 | `blend_out_ms` | 毫秒 | 演出结束**回落到自由镜头**的过渡时长；`0` = 立即回弹。范围 `0..2000`，默认 `80` |
 
@@ -93,17 +94,37 @@ Keeping the previous N animation camera rules because a file was rejected
 `blend_out_ms` 只控制**结束时的回落**，不控制切入。默认 80 毫秒只是为了避免生硬跳回；
 想要完全瞬时，把它设为 `0`。
 
-**最终偏移量**：
+**机位**（不随体型变化）：
 
 ```
-右方 = side + width_base + 实体碰撞箱宽度 × width_scale
-前方 = front + width_base + 实体碰撞箱宽度 × width_scale
+右方 = side
+前方 = front        （负值 = 角色身后）
+高度 = lift + 角色身高 × 0.05
 ```
 
-`width_base` / `width_scale` 是为了让**大体型生物**自动被推远：普通怪物约 2–3 格，
-4 格宽 Boss 约 6 格以上。你只需要按"普通体型"的观感调 `side` / `front`。
+**瞄准点**（随体型微调，避免大体型挡住自己）：
 
-取值必须是有限数：`side`、`lift`、`width_base`、`width_scale`、`min_distance` 为 `0..64`，
+```
+瞄准点 = 角色眼睛 + 前方 × (aim_distance + width_base + 实体碰撞箱宽度 × width_scale)
+```
+
+### ⚠️ 机位为什么不随体型缩放
+
+早期版本把碰撞箱项**同时加到 `side` 和 `front`** 上，结果对宽体生物是灾难性的：
+
+| 生物 | 宽度 | 宽度项 | 实际 `side` | 实际 `front` | 后果 |
+| --- | --- | --- | --- | --- | --- |
+| 僵尸 | 0.60 | 0.30 | 1.25 | -1.40 | 正常 |
+| **劫掠兽** | **1.95** | **0.99** | **1.94** | **-0.71** | **镜头跑到侧边，攻击者出画** |
+
+`front` 的身后偏移**几乎被宽度项抵消**，镜头从"右后方"变成"右侧"。
+
+现在：**机位只用 `side` / `front`**，碰撞箱只推远**瞄准点**。
+`width_scale` 对 1.95 宽的劫掠兽约贡献 1 格前移，保证它不糊满屏幕。
+
+> 你只需要按**普通体型**的观感调 `side` / `front`；大体型会自动前移瞄准点。
+
+取值必须是有限数：`side`、`lift`、`width_base`、`width_scale`、`min_distance`、`aim_distance` 为 `0..64`，
 `front` 为 `-64..64`（可负），`blend_out_ms` 为 `0..2000`，`aim` 必须是三个枚举之一。
 任一字段越界或非法，**该文件被整体拒绝并保留上一套规则**。
 

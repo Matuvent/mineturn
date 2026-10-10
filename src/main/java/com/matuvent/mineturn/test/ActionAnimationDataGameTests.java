@@ -61,30 +61,42 @@ public final class ActionAnimationDataGameTests {
         h.assertTrue(ranged.front() < 0,
                 "Ranged camera is not behind the actor: front=" + ranged.front());
 
-        // A normal mob must be framed further out than the old fixed 1-block offset, and a wide boss
-        // must be pushed further still.
-        double normal = melee.side() + melee.scaleFor(0.6);
-        double boss = melee.side() + melee.scaleFor(4.0);
-        h.assertTrue(normal > 1.2, "Normal-sized actor framing is too close: " + normal);
-        h.assertTrue(boss > normal * 1.8, "Framing did not grow with the collision box: " + normal + " -> " + boss);
-        h.assertTrue(melee.scaleFor(0.0) < melee.scaleFor(4.0), "Collision-box term ignored actor width");
+        // The camera offsets must NOT grow with body size. A previous revision added the collision-box term to
+        // both offsets, which for a ravager (1.95 wide) moved the camera two blocks sideways and nearly
+        // cancelled its backward offset, so the attacker left the frame when attacking one. Body size now
+        // only pushes the look-at point ahead.
+        double ravagerFront = melee.front();
+        h.assertTrue(ravagerFront < -1.0,
+                "The behind-the-actor offset is too small to survive a broad target: front=" + ravagerFront);
+        h.assertTrue(melee.side() < 1.2,
+                "The camera sits too far to the side, which pushes the attacker out of frame: side=" + melee.side());
+        h.assertTrue(melee.scaleFor(0.0) < melee.scaleFor(1.95),
+                "The look-ahead did not grow for a broad actor, so it would fill the shot");
+        h.assertTrue(melee.scaleFor(1.95) < 1.5,
+                "The look-ahead grows so fast it would look past the fight entirely: " + melee.scaleFor(1.95));
+        h.assertTrue(melee.aimDistance() > 0,
+                "Melee camera must look a fixed distance ahead so framing does not depend on target range");
         h.succeed();
     }
 
     /**
-     * The cut to the skill camera is instant; only the release is blended, and its duration is
-     * configurable so a resource pack can make the return instant as well.
+     * The cut is instant and, by user preference after playing it, so is the release: a blended return was
+     * reported as disorienting and it also passed through walls. The field stays configurable so a pack can
+     * reintroduce a blend deliberately.
      */
     @GameTest(template = "empty")
-    public static void blendOutDurationIsConfigurableAndValidated(GameTestHelper h) {
+    public static void releaseBlendIsInstantByDefaultButStillConfigurable(GameTestHelper h) {
         int rules = loadShipped();
         var melee = ActionAnimationData.camera(ResourceLocation.parse("mineturn:melee"));
         h.assertTrue(rules >= 6, "Shipped file should define the full preset set: " + rules
                 + " keys=" + ActionAnimationData.installedKeys());
-        h.assertTrue(melee.blendOutMs() > 0 && melee.blendOutMs() <= 2000,
+        h.assertTrue(melee.blendOutMs() >= 0 && melee.blendOutMs() <= 2000,
                 "Shipped release blend is out of range: " + melee.blendOutMs());
-        h.assertTrue(ActionAnimationData.Camera.DEFAULT.blendOutMs() > 0,
-                "Built-in default should still blend the release");
+        h.assertTrue(melee.blendOutMs() == 0,
+                "The shipped rules should release instantly; a blend was reported as disorienting: "
+                        + melee.blendOutMs());
+        h.assertTrue(ActionAnimationData.Camera.DEFAULT.blendOutMs() == 0,
+                "The built-in default should also release instantly");
 
         // Zero is legal and means "release instantly".
         ActionAnimationData.installFromFiles(java.util.Map.of(FILE, JsonParser.parseString(

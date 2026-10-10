@@ -1,13 +1,14 @@
 {
-  "__comment": "Action camera framing. The cut to the skill camera is instant; blend_out_ms only controls the release back to the free camera. side = blocks to the actor's right, front = blocks along its facing (NEGATIVE means behind the actor, i.e. an over-the-shoulder shot). Offsets are added on top of a collision-box term: final offset = value + width_base + bbWidth * width_scale. aim = actor | target | midpoint. Lengths in blocks, blend_out_ms in milliseconds (0 = instant).",
+  "__comment": "Action camera framing. The cut and the release are both instant (blend_out_ms 0). side = blocks to the actor's right, front = blocks along its facing (NEGATIVE = behind the actor, i.e. over-the-shoulder). The CAMERA POSITION does not depend on body size; width_base/width_scale only push the LOOK-AT POINT further ahead so a broad actor does not fill the shot. Scaling the camera offsets by body width is what previously dragged the camera sideways and lost the attacker on a ravager. aim_distance = base look-ahead in blocks. blend_out_ms in milliseconds.",
   "camera": {
     "side": 0.9,
     "front": -1.6,
     "lift": 0.8,
-    "width_base": 0.5,
+    "width_base": 0.0,
     "width_scale": 0.5,
     "min_distance": 1.6,
-    "blend_out_ms": 80,
+    "aim_distance": 2.0,
+    "blend_out_ms": 0,
     "aim": "midpoint"
   },
   "actions": {
@@ -15,45 +16,50 @@
       "side": 0.95,
       "front": -1.7,
       "lift": 0.85,
-      "width_base": 0.5,
+      "width_base": 0.0,
       "width_scale": 0.5,
       "min_distance": 1.7,
+      "aim_distance": 2.0,
       "aim": "midpoint"
     },
     "ranged": {
       "side": 0.85,
       "front": -1.9,
       "lift": 0.95,
-      "width_base": 0.5,
+      "width_base": 0.0,
       "width_scale": 0.5,
       "min_distance": 1.8,
-      "aim": "target"
+      "aim_distance": 3.0,
+      "aim": "midpoint"
     },
     "eat": {
       "side": 0.75,
       "front": 0.9,
       "lift": 0.45,
-      "width_base": 0.4,
+      "width_base": 0.0,
       "width_scale": 0.4,
       "min_distance": 1.6,
+      "aim_distance": 0.5,
       "aim": "actor"
     },
     "drink": {
       "side": 0.8,
       "front": 0.9,
       "lift": 0.5,
-      "width_base": 0.4,
+      "width_base": 0.0,
       "width_scale": 0.4,
       "min_distance": 1.6,
+      "aim_distance": 0.5,
       "aim": "actor"
     },
     "generic": {
       "side": 0.9,
       "front": -1.6,
       "lift": 0.8,
-      "width_base": 0.5,
+      "width_base": 0.0,
       "width_scale": 0.5,
       "min_distance": 1.6,
+      "aim_distance": 2.0,
       "aim": "midpoint"
     }
   }

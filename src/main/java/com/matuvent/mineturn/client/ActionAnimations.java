@@ -44,7 +44,7 @@ public final class ActionAnimations {
     private ActionAnimations(){}
 
     /** The instant cut plus how long the release blend back to the free camera lasts. */
-    private record Playback(ResourceLocation id, long started, long durationMs, CameraPose hold, double blendOutMs) {}
+    private record Playback(ResourceLocation id, long started, long durationMs, CameraPose hold, double blendOutMs, int actorId) {}
     private record Queued(BattleNetwork.ActionAnimation packet, CameraPose hold) {}
 
     /**
@@ -74,7 +74,7 @@ public final class ActionAnimations {
         var framing=computeHold(level,packet.animationId(),actor,pickAim(level,packet,actor));
         blendOutFrom=null;blendOutTo=null;
         playback=new Playback(packet.animationId(),System.nanoTime(),durationFor(packet.animationId()),
-                framing.pose(),framing.blendOutMs());
+                framing.pose(),framing.blendOutMs(),packet.actorId());
     }
 
     /** Resolved framing plus the release duration, sampled once when the performance starts. */
@@ -112,16 +112,20 @@ public final class ActionAnimations {
         Vec3 forward=new Vec3(-Math.sin(yaw),0,Math.cos(yaw));
         Vec3 right=new Vec3(Math.cos(yaw),0,-Math.sin(yaw));
         var rule=ActionAnimationData.camera(id);
-        double bbWidth=actor.getBbWidth();
-        double scale=rule.scaleFor(bbWidth);
-        double side=rule.side()+scale, front=rule.front()+scale;
+        // Camera offsets come straight from the rule. Body size only pushes the look-at point ahead, so a
+        // broad actor does not fill the shot - scaling the offsets by width is what previously dragged the
+        // camera two blocks sideways and lost the attacker on a ravager.
+        double side=rule.side(), front=rule.front();
         double lift=rule.lift()+actor.getBbHeight()*0.05;
+        double aimAhead=rule.aimDistance()+rule.scaleFor(actor.getBbWidth());
         Vec3 base=actor.position().add(0,actor.getEyeHeight()*0.7,0);
-        // Over-the-shoulder framing aims between the two bodies; self-targeted actions look at the actor.
+        // Look at a point a fixed distance in front of the actor rather than at a fraction of the way to the
+        // target. Aiming at the target meant the framing changed with how far away it was: a distant target
+        // left the camera right on top of the actor, which pushed the attacker out of frame.
         Vec3 look=switch(rule.aim()){
             case ACTOR -> actor.getEyePosition();
             case TARGET -> aim.getEyePosition();
-            case MIDPOINT -> actor.getEyePosition().lerp(aim.getEyePosition(),0.5);
+            case MIDPOINT -> actor.getEyePosition().add(forward.scale(aimAhead));
         };
         Vec3 wanted=base.add(forward.scale(front)).add(right.scale(side)).add(0,lift,0);
         // First keep the frame clear of the subject, then clamp it out of any wall on the sight line.
@@ -179,7 +183,7 @@ public final class ActionAnimations {
         if(elapsedMs>=playback.durationMs()){
             // Release: blend from the hold pose back to where the free camera was before the cut.
             blendOutFrom=playback.hold();
-            blendOutTo=freeCamera();
+            blendOutTo=freeCamera(playback.actorId());
             blendOutStart=now;
             blendOutMs=playback.blendOutMs();
             playback=null;
@@ -193,13 +197,23 @@ public final class ActionAnimations {
     /**
      * The camera the player would see without a performance, derived from the free orbit state. Sampled
      * once when the performance releases so the return trip targets a stable pose.
+     *
+     * <p>Clamped against terrain like the skill framing is. Without this the release target could sit
+     * inside a wall - the orbit distance does not know about geometry - and the camera would visibly pass
+     * through it on the way back.
      */
-    private static CameraPose freeCamera(){
+    private static CameraPose freeCamera(int actorId){
         double yaw=Math.toRadians(BattleClient.yaw),pitch=Math.toRadians(BattleClient.pitch);
         Vec3 focus=BattleClient.focus;
         double horizontal=Math.cos(pitch);
         Vec3 back=new Vec3(-Math.sin(yaw)*horizontal,-Math.sin(pitch),Math.cos(yaw)*horizontal);
-        return new CameraPose(focus.add(back.scale(BattleClient.distance)),BattleClient.yaw,BattleClient.pitch);
+        Vec3 wanted=focus.add(back.scale(BattleClient.distance));
+        var level=Minecraft.getInstance().level;
+        if(level!=null && level.getEntity(actorId) instanceof LivingEntity observer){
+            // Pull the camera in toward the focus point until it is clear of any block.
+            wanted=clearSight(level,wanted,focus,observer);
+        }
+        return new CameraPose(wanted,BattleClient.yaw,BattleClient.pitch);
     }
 
     private static CameraPose blend(CameraPose from,CameraPose to,double t){
