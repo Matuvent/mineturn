@@ -36,7 +36,24 @@ src/main/resources/
 
 独立数据包则使用相同的 `data/` 内容，在包根目录添加 `pack.mcmeta`，安装到 `<world>/datapacks/<pack>/` 或相应 ZIP 包中。Minecraft 1.21.1 的数据包格式版本为 48，函数目录为单数 `function`。
 
-## 跨命名空间引用
+## 资源 ID 与文件路径的对应
+
+**这是最容易踩的坑**：`mineturn/` 目录层**不属于资源 ID**，它由加载器剥掉。
+
+| 磁盘路径 | 资源 ID |
+| --- | --- |
+| `data/mineturn/mineturn/actions/melee.json` | `mineturn:melee` |
+| `data/cataclysm_mineturn/mineturn/actions/heavy_strike.json` | `cataclysm_mineturn:heavy_strike` |
+| `data/cataclysm_mineturn/mineturn/items/example_weapon.json` | `cataclysm_mineturn:example_weapon` |
+| `data/my_pack/mineturn/mobs/boss.json` | `my_pack:boss` |
+
+`data/` 下的**第一段**是命名空间，`mineturn/` 是识别目录，其后的 `actions` / `items` / `mobs` /
+`grants` / `ai_templates` / `catalog` 才是文件夹类型。
+
+若写成 `cataclysm_mineturn:mineturn/actions/heavy_strike` 会得到
+`Unknown definition folder` —— 加载器只认那六个文件夹名。
+
+## 生物注册
 
 生物注册示例（`target_mod:example_boss` 是占位实体 ID）：
 
@@ -50,6 +67,20 @@ src/main/resources/
   }
 }
 ```
+
+### `ai` 支持的事件（**共五个，`on_turn` 必填**）
+
+| 字段 | 是否必填 | 触发时机 |
+| --- | --- | --- |
+| `on_turn` | **必填** | 轮到该生物行动 |
+| `on_enter` | 可选 | 加入战斗时 |
+| `on_move_finished` | 可选 | 一次移动结束时 |
+| `on_action_resolved` | 可选 | 一次行动结算完成时 |
+| `on_leave` | 可选 | 退出战斗时 |
+| `parameters` | 可选 | 自定义参数，供 mcfunction 读取 |
+
+写其它字段会报 `Unknown ai field`；缺 `on_turn` 会报 `ai.on_turn is required`。
+`ai` 与旧式 `states` **互斥**，不能同时出现。
 
 示例物品映射沿用现有格式：
 
@@ -114,9 +145,23 @@ src/main/resources/
 
 JSON、原版函数及标签都属于服务端数据，由数据包加载/重载流程更新。新增 Java 效果执行器仍需重启，不能通过 `/reload` 加载 Java 代码。
 
-发布前检查函数入口、动作 ID、实体/物品 ID、重复映射、数据版本和参数。错误报告包含资源 ID 与字段路径；诊断命令显示最终资源来源，帮助作者查明哪一个包覆盖了定义。
+发布前检查函数入口、动作 ID、实体/物品 ID、重复映射、数据版本和参数。错误报告包含资源 ID 与字段路径。
+
+> **关于"诊断命令"**：早期版本的本规范声称可以通过命令查看某个定义的最终来源，
+> **实际上没有这样的命令**——`/mineturn` 只有 `end`、`sprint`、`retreat`、`flee`、`attack`、`use`、
+> `move`、`abort` 八个子命令，都不显示资源来源。来源信息（`CombatData.Snapshot.sources()`）只在
+> Java 与测试中可读。**排查覆盖冲突目前只能靠二分法禁用数据包**，本规范不再承诺不存在的入口。
 
 原有“正在进行的战斗保持旧 JSON 快照”不能直接保证 mcfunction 一致性：原版函数及其间接引用可能在重载后变化。第一版函数 AI 已在资源重载开始时结束现有战斗并清理其 AV 定时任务；JSON 只有在 Minecraft 安装对应新函数库时发布，加载与交叉校验完成后才允许新函数 AI 入战。不能承诺旧 JSON、旧函数和旧标签自动一起回滚。
+
+## 可复制的示例
+
+`examples/` 下有 13 个**可直接安装**的数据包/资源包，覆盖物品适配、函数 AI、批量选择器、条件授予、
+空间 Boss、延迟行动、传送、陷阱、场地效果、动作镜头等。每个包都是**部分数据包**——引用本模组自带
+定义而不重复声明，所以单独安装时看到"缺少某个动作"是正常的，与主模组一起用即可。
+
+> **示例会被测试真正加载**：`test/ExamplePackValidationGameTests.java` 把每个示例包连同本模组定义
+> 一起喂给真实解析器。示例一旦与代码脱节，测试就会失败——文档承诺的东西因此不会悄悄失效。
 
 ## 验收用例
 
@@ -127,5 +172,6 @@ JSON、原版函数及标签都属于服务端数据，由数据包加载/重载
 - 相同资源路径按实际包优先级覆盖；不同路径重复映射报告明确冲突。
 - 跨命名空间引用、缺失依赖、函数语法错误及数据版本错误均有可定位诊断。
 - `/reload` 后新配置生效，旧战斗及其延迟函数不继续混用资源版本。
+- **`examples/` 下每个示例包都能被当前解析器加载**（自动化，见上）。
 
 参考：[NeoForge 资源文档](https://docs.neoforged.net/docs/1.21.1/resources/)。

@@ -12,7 +12,12 @@
 | projectile | 雪球 | 远程判定与原版命中；成功对烈焰人特殊伤害，未命中也消费，无缓慢 |
 | teleport | 末影珍珠 | 原有选点、碰撞检查与自伤；AV 冷却及原版冷却交接保持生效 |
 
-每组一个 actions JSON、一个 items JSON，全部位于 data/item_example/mineturn 下。动作 ID 为 item_example:weapon/food/potion/projectile/teleport。items 文件使用 priority=100 覆盖内置的低优先级物品映射，其他物品不变。物品已有自带 mineturn:combat 组件时，组件优先于物品映射。
+每组一个 actions JSON、一个 items JSON，全部位于 data/item_example/mineturn 下。**动作 ID 为 `item_example:weapon` 等——`mineturn/` 目录层不属于 ID**，它由加载器剥掉。items 文件使用 priority=100 覆盖内置的低优先级物品映射，其他物品不变。物品已有自带 mineturn:combat 组件时，组件优先于物品映射。
+
+> **本示例会被测试真正加载**：`test/ExamplePackValidationGameTests.java` 把它连同本模组定义一起喂给
+> 真实解析器，并核对本文列出的五个动作名与六个物品是否存在。文档或示例一旦脱节，测试就会失败。
+>
+> 示例是**部分数据包**：它引用本模组自带动作而不重复声明，所以单独安装时看到"缺少某个动作"属正常。
 
 先手中拿铁剑/木棍并放入快捷栏，确认示例动作名称；测试苹果一次消费、带不同药水内容的喷溅药水、雪球成功/失败消耗，再测试珍珠落点与冷却。界面效果需客户端和服务器版本一致。
 
